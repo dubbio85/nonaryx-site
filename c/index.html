@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sudoku Nonaryx — Sfida</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #0d1022; color: #e8eaf6; font-family: system-ui, -apple-system, sans-serif;
+    padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 420px; background: #1a1e38; border-radius: 20px;
+    padding: 28px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  }
+  .logo { font-size: 44px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  p.sub { color: #9aa0c3; font-size: 14px; margin: 0 0 20px; }
+  .code {
+    display: block; margin: 0 auto 16px; padding: 12px 14px; background: #0d1022;
+    border: 1px dashed #4a5080; border-radius: 10px; font-family: ui-monospace, monospace;
+    font-size: 13px; word-break: break-all; color: #8ee3ff; max-height: 120px; overflow: auto;
+    text-align: left;
+  }
+  button.primary, a.primary {
+    display: block; width: 100%; padding: 14px; margin: 8px 0; border: 0; border-radius: 12px;
+    background: #4f6df5; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+    text-decoration: none;
+  }
+  button.secondary {
+    display: block; width: 100%; padding: 12px; margin: 8px 0; border-radius: 12px;
+    background: transparent; border: 1px solid #4a5080; color: #cdd3f5; font-size: 14px; cursor: pointer;
+  }
+  .steps { text-align: left; font-size: 13px; color: #9aa0c3; line-height: 1.7; margin: 18px 0 0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">🧩</div>
+  <h1>Sudoku Nonaryx</h1>
+  <p class="sub" id="subtitle">Hai ricevuto una sfida!</p>
+
+  <code class="code" id="codeBox">…</code>
+
+  <a class="primary" id="openApp" href="#">Apri nell'app</a>
+  <button class="secondary" id="copyBtn">Copia il codice</button>
+
+  <div class="steps" id="steps"></div>
+</div>
+
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var code = params.get('code') || '';
+  var box = document.getElementById('codeBox');
+  box.textContent = code || 'Codice mancante';
+
+  var it = (navigator.language || 'it').toLowerCase().startsWith('it');
+
+  document.getElementById('subtitle').textContent = it
+    ? 'Hai ricevuto una sfida!'
+    : 'You received a challenge!';
+  document.getElementById('openApp').textContent = it ? "Apri nell'app" : 'Open in the app';
+  document.getElementById('copyBtn').textContent = it ? 'Copia il codice' : 'Copy the code';
+  document.getElementById('steps').innerHTML = it
+    ? 'Se l\'app non si apre:<br>1. Tocca «Copia il codice»<br>2. Apri Sudoku Nonaryx → «Batti un amico»<br>3. Tocca «Incolla dagli appunti»'
+    : 'If the app doesn\'t open:<br>1. Tap "Copy the code"<br>2. Open Sudoku Nonaryx → "Beat a friend"<br>3. Tap "Paste from clipboard"';
+
+  var intentUrl = 'intent://challenge?code=' + encodeURIComponent(code)
+    + '#Intent;scheme=sudokupulse;package=com.sudokupulse.app;end';
+  var deepLink = 'sudokupulse://challenge?code=' + encodeURIComponent(code);
+  var isAndroid = /Android/i.test(navigator.userAgent);
+
+  var openLink = isAndroid ? intentUrl : deepLink;
+  document.getElementById('openApp').setAttribute('href', openLink);
+
+  // Prova ad aprire subito l'app; se non è installata la pagina resta con le istruzioni.
+  setTimeout(function () {
+    if (code) window.location.href = openLink;
+  }, 400);
+
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    var done = function () {
+      document.getElementById('copyBtn').textContent = it ? 'Codice copiato!' : 'Code copied!';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(done);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = code; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta); done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
