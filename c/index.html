@@ -46,6 +46,7 @@
   <code class="code" id="codeBox">…</code>
 
   <a class="primary" id="openApp" href="#">Apri nell'app</a>
+  <a class="primary" id="playStore" href="https://play.google.com/store/apps/details?id=com.sudokupulse.app" style="background:#0f9d58">Scarica dal Play Store</a>
   <button class="secondary" id="copyBtn">Copia il codice</button>
 
   <div class="steps" id="steps"></div>
@@ -64,13 +65,16 @@
     ? 'Hai ricevuto una sfida!'
     : 'You received a challenge!';
   document.getElementById('openApp').textContent = it ? "Apri nell'app" : 'Open in the app';
+  document.getElementById('playStore').textContent = it ? 'Scarica dal Play Store' : 'Get it on Google Play';
   document.getElementById('copyBtn').textContent = it ? 'Copia il codice' : 'Copy the code';
   document.getElementById('steps').innerHTML = it
     ? 'Se l\'app non si apre:<br>1. Tocca «Copia il codice»<br>2. Apri Sudoku Nonaryx → «Batti un amico»<br>3. Tocca «Incolla dagli appunti»'
     : 'If the app doesn\'t open:<br>1. Tap "Copy the code"<br>2. Open Sudoku Nonaryx → "Beat a friend"<br>3. Tap "Paste from clipboard"';
 
   var intentUrl = 'intent://challenge?code=' + encodeURIComponent(code)
-    + '#Intent;scheme=sudokupulse;package=com.sudokupulse.app;end';
+    + '#Intent;scheme=sudokupulse;package=com.sudokupulse.app;'
+    + 'S.browser_fallback_url=' + encodeURIComponent('https://play.google.com/store/apps/details?id=com.sudokupulse.app')
+    + ';end';
   var deepLink = 'sudokupulse://challenge?code=' + encodeURIComponent(code);
   var isAndroid = /Android/i.test(navigator.userAgent);
 
