@@ -19,12 +19,7 @@
   .logo { font-size: 44px; }
   h1 { font-size: 22px; margin: 8px 0 4px; }
   p.sub { color: #9aa0c3; font-size: 14px; margin: 0 0 20px; }
-  .code {
-    display: block; margin: 0 auto 16px; padding: 12px 14px; background: #0d1022;
-    border: 1px dashed #4a5080; border-radius: 10px; font-family: ui-monospace, monospace;
-    font-size: 13px; word-break: break-all; color: #8ee3ff; max-height: 120px; overflow: auto;
-    text-align: left;
-  }
+  [hidden] { display: none !important; }
   button.primary, a.primary {
     display: block; width: 100%; padding: 14px; margin: 8px 0; border: 0; border-radius: 12px;
     background: #4f6df5; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
@@ -43,11 +38,9 @@
   <h1>Sudoku Nonaryx</h1>
   <p class="sub" id="subtitle">Hai ricevuto una sfida!</p>
 
-  <code class="code" id="codeBox">…</code>
-
-  <a class="primary" id="openApp" href="#">Apri nell'app</a>
+  <a class="primary" id="openApp" href="#">Accetta la sfida</a>
   <a class="primary" id="playStore" href="https://play.google.com/store/apps/details?id=com.sudokupulse.app" style="background:#0f9d58">Scarica dal Play Store</a>
-  <button class="secondary" id="copyBtn">Copia il codice</button>
+  <button class="secondary" id="copyBtn" hidden>Copia il codice</button>
 
   <div class="steps" id="steps"></div>
 </div>
@@ -56,20 +49,19 @@
 (function () {
   var params = new URLSearchParams(location.search);
   var code = params.get('code') || '';
-  var box = document.getElementById('codeBox');
-  box.textContent = code || 'Codice mancante';
+  var copyButton = document.getElementById('copyBtn');
 
   var it = (navigator.language || 'it').toLowerCase().startsWith('it');
 
   document.getElementById('subtitle').textContent = it
     ? 'Hai ricevuto una sfida!'
     : 'You received a challenge!';
-  document.getElementById('openApp').textContent = it ? "Apri nell'app" : 'Open in the app';
+  document.getElementById('openApp').textContent = it ? 'Accetta la sfida' : 'Accept this challenge';
   document.getElementById('playStore').textContent = it ? 'Scarica dal Play Store' : 'Get it on Google Play';
-  document.getElementById('copyBtn').textContent = it ? 'Copia il codice' : 'Copy the code';
+  copyButton.textContent = it ? 'Copia il codice' : 'Copy the code';
   document.getElementById('steps').innerHTML = it
-    ? 'Se l\'app non si apre:<br>1. Tocca «Copia il codice»<br>2. Apri Sudoku Nonaryx → «Batti un amico»<br>3. Tocca «Incolla dagli appunti»'
-    : 'If the app doesn\'t open:<br>1. Tap "Copy the code"<br>2. Open Sudoku Nonaryx → "Beat a friend"<br>3. Tap "Paste from clipboard"';
+    ? 'Se non hai ancora l\'app, scaricala dal Play Store per accettare la sfida.'
+    : 'If you do not have the app yet, get it from Google Play to accept the challenge.';
 
   var intentUrl = 'intent://challenge?code=' + encodeURIComponent(code)
     + '#Intent;scheme=sudokupulse;package=com.sudokupulse.app;'
@@ -82,11 +74,7 @@
   document.getElementById('openApp').setAttribute('href', openLink);
 
   // Prova ad aprire subito l'app; se non è installata la pagina resta con le istruzioni.
-  setTimeout(function () {
-    if (code) window.location.href = openLink;
-  }, 400);
-
-  document.getElementById('copyBtn').addEventListener('click', function () {
+  copyButton.addEventListener('click', function () {
     var done = function () {
       document.getElementById('copyBtn').textContent = it ? 'Codice copiato!' : 'Code copied!';
     };
