@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "com.sudokupulse.app",
       "sha256_cert_fingerprints": [
-        "2A:DB:CC:51:A5:AE:42:EF:30:3D:19:ED:19:5B:9B:23:4A:E8:05:10:1C:65:23:ED:E2:AE:69:86:E2:1B:11:8B"
+        "2A:DB:CC:51:A5:AE:42:EF:30:3D:19:ED:19:5B:9B:23:4A:E8:05:10:1C:65:23:ED:E2:AE:69:86:E2:1B:11:8B",
+        "2F:EE:DD:C3:B5:EE:FD:60:15:FE:D9:F1:B2:71:E0:48:DB:8F:FA:C9:04:0D:B1:E0:F2:75:06:77:8C:FA:B2:2F"
       ]
     }
   }
