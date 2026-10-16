@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sudoku Nonaryx — Classifica mondiale</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: #0d1022; color: #e8eaf6;
+    font-family: system-ui, -apple-system, sans-serif;
+    padding: 24px;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 20px; }
+  .logo { font-size: 40px; }
+  h1 { font-size: 22px; margin: 6px 0 4px; }
+  p.sub { color: #9aa0c3; font-size: 14px; margin: 0; }
+  [hidden] { display: none !important; }
+  .tabs { display: flex; gap: 6px; margin: 18px 0 12px; flex-wrap: wrap; }
+  .tabs button {
+    flex: 1; min-width: 90px; padding: 10px 8px; border-radius: 10px; cursor: pointer;
+    border: 1px solid #2b3160; background: #151a36; color: #cdd3f5; font-size: 13px;
+  }
+  .tabs button[aria-selected="true"] { background: #4f6df5; border-color: #4f6df5; color: #fff; font-weight: 600; }
+  .board { background: #1a1e38; border-radius: 16px; padding: 8px 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { color: #9aa0c3; font-weight: 600; font-size: 11px; text-transform: uppercase;
+       letter-spacing: .06em; padding: 8px 10px; text-align: left; }
+  td { padding: 9px 10px; border-top: 1px solid #262c52; }
+  tr:first-of-type td { border-top: 0; }
+  td.rank { width: 40px; color: #9aa0c3; }
+  td.rank.top { color: #ffd54f; font-weight: 700; }
+  td.time, td.err { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.name { overflow: hidden; text-overflow: ellipsis; }
+  .note { color: #9aa0c3; font-size: 13px; text-align: center; padding: 22px 14px; }
+  .note a { color: #8fa2ff; }
+  .foot { text-align: center; color: #6b7199; font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🧩</div>
+    <h1>Sudoku Nonaryx</h1>
+    <p class="sub" id="subtitle">Classifica mondiale · World leaderboard</p>
+  </header>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+
+  <div class="board">
+    <div class="note" id="loading">Caricamento…</div>
+    <div class="note" id="offline" hidden>
+      <div id="offlineMsg">La classifica online non è ancora attiva. Torna presto!</div>
+      <div style="margin-top:8px"><a href="/">← Home</a></div>
+    </div>
+    <div class="note" id="empty" hidden>Nessun risultato ancora: sarai il primo?</div>
+    <table id="table" hidden>
+      <thead><tr>
+        <th>#</th><th id="thName">Giocatore</th>
+        <th style="text-align:right" id="thTime">Tempo</th>
+        <th style="text-align:right" id="thErr">Errori</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="note" id="total" hidden></div>
+  </div>
+
+  <div class="foot">
+    <span id="footText">I risultati vengono pubblicati dall'app dopo il consenso dell'utente.</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  var API = new URLSearchParams(location.search).get("api") || "https://api.nonaryx.it";
+  var en = /^en/i.test(navigator.language || "");
+  var DIFFS = en
+    ? ["Easy", "Medium", "Hard", "Expert", "Extreme"]
+    : ["Facile", "Media", "Difficile", "Esperto", "Estrema"];
+  var DAILY = en ? "Today" : "Oggi";
+
+  var i18n = {
+    loading: en ? "Loading…" : "Caricamento…",
+    offline: en ? "The online leaderboard is not live yet. Come back soon!"
+                : "La classifica online non è ancora attiva. Torna presto!",
+    empty:   en ? "No results yet: will you be the first?" : "Nessun risultato ancora: sarai il primo?",
+    player:  en ? "Player" : "Giocatore",
+    time:    en ? "Time" : "Tempo",
+    errors:  en ? "Errors" : "Errori",
+    total:   en ? function (n) { return n + " players on this board"; }
+                : function (n) { return n + " giocatori su questa board"; },
+    foot:    en ? "Results are published from the app after user consent."
+                : "I risultati vengono pubblicati dall'app dopo il consenso dell'utente.",
+  };
+
+  document.getElementById("thName").textContent = i18n.player;
+  document.getElementById("thTime").textContent = i18n.time;
+  document.getElementById("thErr").textContent = i18n.errors;
+  document.getElementById("footText").textContent = i18n.foot;
+  if (en) document.getElementById("offlineMsg").textContent = i18n.offline;
+
+  var tabs = document.getElementById("tabs");
+  var sections = [{ key: "daily", label: DAILY }]
+    .concat(DIFFS.map(function (d, i) { return { key: "diff" + i, label: d, diff: i }; }));
+  sections.forEach(function (s, idx) {
+    var b = document.createElement("button");
+    b.textContent = s.label;
+    b.setAttribute("role", "tab");
+    b.onclick = function () { select(idx); };
+    tabs.appendChild(b);
+  });
+
+  var loadingEl = document.getElementById("loading");
+  var offlineEl = document.getElementById("offline");
+  var emptyEl = document.getElementById("empty");
+  var tableEl = document.getElementById("table");
+  var rowsEl = document.getElementById("rows");
+  var totalEl = document.getElementById("total");
+
+  function isoToday() { return new Date().toISOString().slice(0, 10); }
+
+  function fmt(ms) {
+    var s = Math.round(ms / 1000);
+    var m = Math.floor(s / 60), r = s % 60;
+    return m + ":" + String(r).padStart(2, "0");
+  }
+
+  function show(state) {
+    loadingEl.hidden = state !== "loading";
+    offlineEl.hidden = state !== "offline";
+    emptyEl.hidden = state !== "empty";
+    tableEl.hidden = state !== "data";
+    totalEl.hidden = true;
+  }
+
+  function render(entries, total) {
+    rowsEl.textContent = "";
+    entries.forEach(function (e) {
+      var tr = document.createElement("tr");
+      var rank = document.createElement("td");
+      rank.className = "rank" + (e.rank <= 3 ? " top" : "");
+      rank.textContent = e.rank;
+      var name = document.createElement("td");
+      name.className = "name";
+      name.textContent = e.nickname || "—";
+      var time = document.createElement("td");
+      time.className = "time";
+      time.textContent = fmt(e.adjusted_ms != null ? e.adjusted_ms : e.elapsed_ms);
+      var err = document.createElement("td");
+      err.className = "err";
+      err.textContent = e.errors;
+      tr.appendChild(rank); tr.appendChild(name); tr.appendChild(time); tr.appendChild(err);
+      rowsEl.appendChild(tr);
+    });
+    if (total != null && total > entries.length) {
+      totalEl.textContent = i18n.total(total);
+      totalEl.hidden = false;
+    }
+    show("data");
+  }
+
+  function fetchJson(url) {
+    return fetch(url, { headers: { "Accept": "application/json" } })
+      .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); });
+  }
+
+  function select(idx) {
+    var buttons = tabs.querySelectorAll("button");
+    buttons.forEach(function (b, i) { b.setAttribute("aria-selected", i === idx); });
+    show("loading");
+    var s = sections[idx];
+    var p = s.key === "daily"
+      ? fetchJson(API + "/leaderboard?board=" + encodeURIComponent("daily:" + isoToday()) + "&limit=50")
+          .then(function (d) { return { entries: d.entries, total: d.total }; })
+      : fetchJson(API + "/alltime?difficulty=" + s.diff + "&limit=50")
+          .then(function (d) { return { entries: d.entries, total: null }; });
+    p.then(function (d) {
+        if (!d.entries || d.entries.length === 0) show("empty"); else render(d.entries, d.total);
+      })
+      .catch(function () { show("offline"); });
+  }
+
+  select(0);
+})();
+</script>
+</body>
+</html>
