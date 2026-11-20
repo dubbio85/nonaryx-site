@@ -65,6 +65,9 @@
   .login button, .ghost { padding: 10px 14px; border-radius: 10px; border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
   .ghost { background: transparent; border: 1px solid var(--line); color: var(--muted); font-weight: 400; font-size: 12px; padding: 6px 10px; }
   .err { color: var(--bad); font-size: 13px; min-height: 1.2em; }
+  .err.okmsg { color: var(--ok); }
+  .field { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--fg); font: inherit; }
+  .primary { padding: 9px 14px; border-radius: 10px; border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
   .foot { color: var(--faint); font-size: 12px; text-align: center; }
   @media (max-width: 900px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   @media (max-width: 680px) { .grid { grid-template-columns: minmax(0, 1fr); } .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -91,9 +94,21 @@
           <button role="tab" data-r="month" aria-selected="false">Mese</button>
           <button role="tab" data-r="year" aria-selected="false">Anno</button>
         </div>
+        <button class="ghost" id="changeBtn" type="button">Cambia codice</button>
         <button class="ghost" id="logout" type="button">Esci</button>
       </div>
     </header>
+
+    <form class="card" id="changeForm" hidden style="margin-top:12px;max-width:460px">
+      <h2>Scegli il tuo codice</h2>
+      <p class="hint">Da 10 caratteri in su. Il server ne salva solo un'impronta cifrata: nessuno, nemmeno chi gestisce il server, può leggerlo. Quello vecchio smette subito di funzionare.</p>
+      <label class="label" for="newCode">Nuovo codice</label>
+      <input class="field" id="newCode" type="password" autocomplete="new-password" minlength="10" maxlength="200" required>
+      <label class="label" for="newCode2">Ripeti il nuovo codice</label>
+      <input class="field" id="newCode2" type="password" autocomplete="new-password" minlength="10" maxlength="200" required>
+      <div style="display:flex;gap:8px"><button class="primary" type="submit">Salva codice</button><button class="ghost" id="changeCancel" type="button">Annulla</button></div>
+      <div class="err" id="changeMsg"></div>
+    </form>
 
     <div class="kpis" style="margin-top:14px">
       <div class="kpi"><div class="label">Account totali</div><div class="v" id="kAcc">–</div><div class="s" id="kAccNew"></div></div>
@@ -326,6 +341,30 @@
     token = $("tok").value.trim(); if (!token) return;
     try { localStorage.setItem(KEY, token); } catch (x) {}
     $("loginErr").textContent = "Verifico…"; load();
+  });
+  $("changeBtn").addEventListener("click", function () {
+    $("changeForm").hidden = !$("changeForm").hidden; $("changeMsg").textContent = ""; $("changeMsg").className = "err";
+    if (!$("changeForm").hidden) $("newCode").focus();
+  });
+  $("changeCancel").addEventListener("click", function () { $("changeForm").hidden = true; });
+  $("changeForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var a = $("newCode").value, b = $("newCode2").value, msg = $("changeMsg");
+    msg.className = "err";
+    if (a.length < 10) { msg.textContent = "Il codice deve avere almeno 10 caratteri."; return; }
+    if (a !== b) { msg.textContent = "I due codici non coincidono."; return; }
+    msg.textContent = "Salvo…";
+    fetch(API + "/admin/code", { method: "POST", headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ current: token, "new": a }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { msg.textContent = res.j.error || "Non sono riuscito a salvare il codice."; return; }
+        token = a; try { localStorage.setItem(KEY, token); } catch (x) {}
+        $("newCode").value = $("newCode2").value = "";
+        msg.className = "err okmsg"; msg.textContent = "Codice salvato. Da ora vale solo questo.";
+        setTimeout(function () { $("changeForm").hidden = true; }, 2500);
+      })
+      .catch(function () { msg.textContent = "Server non raggiungibile, riprova."; });
   });
   $("logout").addEventListener("click", function () { try { localStorage.removeItem(KEY); } catch (x) {} token = null; $("tok").value = ""; showLogin(); });
   Array.prototype.forEach.call(document.querySelectorAll("#ranges button"), function (btn) {
