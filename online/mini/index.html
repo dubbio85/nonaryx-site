@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0d1022">
+<title>Nonaryx</title>
+<style>
+  /* Solo il numero: riempie qualsiasi finestra, anche minuscola. */
+  :root { color-scheme: dark; --bg: #0d1022; --fg: #e8eaf6; --muted: #9aa0c3;
+          --ok: #3ddc97; --warn: #ffb547; --bad: #ff6b7a; --gold: #ffd54f; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--fg); display: grid; place-items: center;
+         font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+         padding-left: max(0px, env(safe-area-inset-left, 0px)); padding-right: max(0px, env(safe-area-inset-right, 0px)); }
+  a { color: inherit; text-decoration: none; display: grid; place-items: center; width: 100%; height: 100%; }
+  .n { font-size: min(70vh, 80vw); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; transition: color .3s; }
+  .n.bump { color: var(--gold); }
+  .dot { position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px));
+         width: max(6px, 4vmin); height: max(6px, 4vmin); border-radius: 50%; background: var(--muted); }
+  .dot[data-s="ok"] { background: var(--ok); } .dot[data-s="warn"] { background: var(--warn); } .dot[data-s="bad"] { background: var(--bad); }
+  @media (prefers-reduced-motion: reduce) { .n { transition: none; } }
+</style>
+</head>
+<body>
+<a href="../" title="Apri il pannello completo"><span class="n" id="n">–</span></a>
+<span class="dot" id="dot" title="Stato del server"></span>
+<script>
+(function () {
+  var API = new URLSearchParams(location.search).get("api") || "https://api.nonaryx.it";
+  var n = document.getElementById("n"), dot = document.getElementById("dot"), last = null, okAt = 0, timer = null;
+  function tick() {
+    fetch(API + "/online", { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (d) {
+        okAt = Date.now(); dot.dataset.s = "ok"; dot.title = "Server attivo";
+        if (last !== null && d.active_now > last) { n.classList.add("bump"); setTimeout(function () { n.classList.remove("bump"); }, 900); }
+        last = d.active_now; n.textContent = d.active_now; document.title = d.active_now + " · Nonaryx";
+      })
+      .catch(function () {
+        var s = okAt && Date.now() - okAt < 30000 ? "warn" : "bad";
+        dot.dataset.s = s; dot.title = s === "bad" ? "Server non raggiungibile" : "Connessione instabile";
+        if (s === "bad") { n.textContent = "–"; document.title = "– · Nonaryx"; }
+      });
+  }
+  function start() { if (!timer) { tick(); timer = setInterval(tick, 10000); } }
+  function stop() { clearInterval(timer); timer = null; }
+  document.addEventListener("visibilitychange", function () { document.hidden ? stop() : start(); });
+  start();
+})();
+</script>
+</body>
+</html>
