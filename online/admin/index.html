@@ -70,7 +70,8 @@
   .primary { padding: 9px 14px; border-radius: 10px; border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
   .foot { color: var(--faint); font-size: 12px; text-align: center; }
   @media (max-width: 900px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  @media (max-width: 680px) { .grid { grid-template-columns: minmax(0, 1fr); } .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .pair.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  @media (max-width: 680px) { .pair.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid { grid-template-columns: minmax(0, 1fr); } .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
 </head>
 <body>
@@ -157,6 +158,37 @@
         <h2>Paesi</h2>
         <p class="hint">Ultimo paese noto di chi è entrato nella stanza.</p>
         <div class="rows" id="countries"></div>
+      </section>
+      <section class="card wide">
+        <h2>Coinvolgimento</h2>
+        <div class="pair four" id="engage"></div>
+        <p class="hint">Attivo = ha aperto la parte online o finito una partita quel giorno. Ultimi 30 giorni, sempre (non dipende dal periodo scelto).</p>
+        <svg id="cDau" viewBox="0 0 640 150" role="img" aria-label="Giocatori attivi al giorno"></svg>
+      </section>
+      <section class="card">
+        <h2>Chi resta e chi se ne va</h2>
+        <p class="hint">Tutti gli account, in base all'ultimo giorno in cui sono stati attivi.</p>
+        <div class="rows" id="churn"></div>
+      </section>
+      <section class="card">
+        <h2>Partite per giocatore</h2>
+        <p class="hint">Quanti giocatori hanno completato N partite nel periodo.</p>
+        <div class="rows" id="mix"></div>
+      </section>
+      <section class="card">
+        <h2>Sfida del giorno</h2>
+        <div class="pair" id="kinds"></div>
+        <svg id="cDaily" viewBox="0 0 320 120" role="img" aria-label="Partecipanti alla sfida del giorno"></svg>
+        <p class="hint">Partecipanti alla sfida del giorno, ultimi 30 giorni.</p>
+      </section>
+      <section class="card">
+        <h2>Social nel dettaglio</h2>
+        <div class="pair" id="socialMore"></div>
+      </section>
+      <section class="card wide">
+        <h2>Distribuzione dei tempi di soluzione</h2>
+        <div class="legend" id="histLegend"></div>
+        <svg id="cTimes" viewBox="0 0 640 170" role="img" aria-label="Tempi di soluzione per difficoltà"></svg>
       </section>
       <section class="card wide">
         <h2>Difficoltà</h2>
@@ -315,6 +347,46 @@
       '<div><div class="label">Segnali dal dispositivo</div><div class="v">' + t.client_flagged + '</div><div class="hint">root, debug o simili</div></div>';
     var IL = { ok: "Play Integrity ok", fail: "Play Integrity fallita", missing: "Token mancante", off: "Verifica spenta", "n/d": "Prima della verifica" };
     rows($("integrity"), Object.keys(t.integrity).map(function (k) { return { k: IL[k] || k, v: t.integrity[k], c: k === "ok" ? "var(--ok)" : k === "fail" ? "var(--bad)" : "var(--faint)" }; }));
+
+    // ---- metriche aggiuntive ----
+    function dur(s) { if (s == null) return "–"; if (s < 90) return Math.round(s) + " s"; if (s < 5400) return Math.round(s / 60) + " min"; if (s < 172800) return (s / 3600).toFixed(1) + " h"; return (s / 86400).toFixed(1) + " g"; }
+    function tile(label, v, hint) { return '<div><div class="label">' + label + '</div><div class="v">' + v + '</div>' + (hint ? '<div class="hint">' + hint + '</div>' : '') + '</div>'; }
+    var e = d.engagement;
+    $("engage").innerHTML = tile("Oggi", e.dau) + tile("Ultimi 7 giorni", e.wau) + tile("Ultimi 30 giorni", e.mau) +
+      tile("Fedeltà", e.stickiness_pct == null ? "–" : e.stickiness_pct + "%", "media giornaliera " + e.avg_dau_30 + " su " + e.mau);
+    var da = e.daily_active;
+    bars($("cDau"), 640, 150, da.map(function (x) { return x.day; }), [{ values: da.map(function (x) { return x.active; }), color: "var(--ok)" }],
+      { every: 5, tick: function (i) { var p = da[i].day.split("-"); return +p[2] + " " + MESI[+p[1] - 1]; },
+        tip: function (i) { return da[i].day + ": " + da[i].active + " attivi"; } });
+    var ch = d.churn, chTot = ch.active_7 + ch.idle_7_30 + ch.gone_30 + ch.never_played;
+    rows($("churn"), [
+      { k: "Attivi (7 gg)", v: ch.active_7, n: ch.active_7 + " · " + pct(ch.active_7, chTot), c: "var(--ok)" },
+      { k: "Fermi 7–30 gg", v: ch.idle_7_30, n: ch.idle_7_30 + " · " + pct(ch.idle_7_30, chTot), c: "var(--warn)" },
+      { k: "Persi (30+ gg)", v: ch.gone_30, n: ch.gone_30 + " · " + pct(ch.gone_30, chTot), c: "var(--bad)" },
+      { k: "Mai giocato", v: ch.never_played, n: ch.never_played + " · " + pct(ch.never_played, chTot), c: "var(--faint)" }
+    ], Math.max(1, chTot));
+    var mixTot = d.players_mix.reduce(function (s, x) { return s + x.players; }, 0);
+    rows($("mix"), d.players_mix.map(function (x) { return { k: x.label + (x.label === "1" ? " partita" : " partite"), v: x.players, n: x.players + " · " + pct(x.players, mixTot) }; }));
+    var gk = d.game_kinds, gkTot = gk.daily + gk.free + gk.other;
+    $("kinds").innerHTML = tile("Sfida del giorno", gk.daily, pct(gk.daily, gkTot) + " delle partite") + tile("Partite libere", gk.free + gk.other, pct(gk.free + gk.other, gkTot) + " delle partite");
+    var dc = d.daily_challenge;
+    bars($("cDaily"), 320, 120, dc.map(function (x) { return x.day; }), [{ values: dc.map(function (x) { return x.players; }), color: "var(--gold)" }],
+      { every: 7, tick: function (i) { var p = dc[i].day.split("-"); return +p[2] + " " + MESI[+p[1] - 1]; },
+        tip: function (i) { return dc[i].day + ": " + dc[i].players + " partecipanti"; } });
+    var sm = d.social_more;
+    $("socialMore").innerHTML =
+      tile("Messaggi letti", sm.messages_read_pct == null ? "–" : sm.messages_read_pct + "%") +
+      tile("Tempo di risposta", dur(sm.reply_median_s), "mediano, in chat") +
+      tile("Sfida accettata in", dur(sm.invite_accept_median_s), "mediano · " + (sm.invites_from_chat_pct == null ? "–" : sm.invites_from_chat_pct + "%") + " dalla chat") +
+      tile("Amicizia accettata in", dur(sm.friend_accept_median_s), "mediano") +
+      tile("Blocchi", sm.blocks_total, "+" + sm.blocks_new + " nel periodo") +
+      tile("Chat silenziate", sm.mutes_total) +
+      tile("Link condivisi", sm.shares_new, "nel periodo");
+    var th = d.time_hist, edges = th.edges_min, binLabels = edges.map(function (x, i) { return "<" + x + "′"; }).concat([edges[edges.length - 1] + "′+"]);
+    binLabels = binLabels.map(function (_, i) { return i === 0 ? "0–" + edges[0] + "′" : i < edges.length ? edges[i - 1] + "–" + edges[i] + "′" : edges[edges.length - 1] + "′+"; });
+    $("histLegend").innerHTML = DIFF.map(function (n, i) { return '<span><i style="background:' + DCOL[i] + '"></i>' + n + '</span>'; }).join("");
+    bars($("cTimes"), 640, 170, binLabels, DIFF.map(function (_, k) { return { values: th.by_diff[k], color: DCOL[k] }; }),
+      { tip: function (i) { return binLabels[i] + ": " + DIFF.map(function (n, k) { return th.by_diff[k][i] ? n + " " + th.by_diff[k][i] : ""; }).filter(Boolean).join(", "); } });
 
     $("foot").textContent = "Aggiornato alle " + new Date().toLocaleTimeString("it-IT") + " · si aggiorna ogni minuto · solo dati aggregati, nessun nome.";
   }
