@@ -20,11 +20,14 @@
   .dot { position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px));
          width: max(6px, 4vmin); height: max(6px, 4vmin); border-radius: 50%; background: var(--muted); }
   .dot[data-s="ok"] { background: var(--ok); } .dot[data-s="warn"] { background: var(--warn); } .dot[data-s="bad"] { background: var(--bad); }
+  .tag { position: fixed; top: calc(6px + env(safe-area-inset-top, 0px)); left: calc(8px + env(safe-area-inset-left, 0px));
+         font-size: max(9px, 5vmin); color: var(--muted); letter-spacing: .04em; }
   @media (prefers-reduced-motion: reduce) { .n { transition: none; } }
 </style>
 </head>
 <body>
 <a href="../" title="Apri il pannello completo"><span class="n" id="n">–</span></a>
+<span class="tag">Sudoku</span>
 <span class="dot" id="dot" title="Stato del server"></span>
 <script>
 (function () {
