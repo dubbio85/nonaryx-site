@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0d1022">
+<title>Nonaryx Statistiche</title>
+<style>
+  /* Pannello privato: sommario in alto, poi un blocco per domanda
+     (crescita, partite, online, orari, difficoltà, ritorno, social, paesi, qualità). */
+  :root {
+    color-scheme: dark;
+    --bg: #0d1022; --panel: #1a1e38; --panel2: #151a36; --line: #262c52;
+    --fg: #e8eaf6; --muted: #9aa0c3; --faint: #6b7199;
+    --accent: #4f6df5; --gold: #ffd54f; --ok: #3ddc97; --warn: #ffb547; --bad: #ff6b7a;
+    --d0: #3ddc97; --d1: #4fb3f5; --d2: #4f6df5; --d3: #b47cff; --d4: #ff6b7a;
+    --num: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+         padding-block: max(18px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-bottom, 0px));
+         padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; }
+  header h1 span { color: var(--muted); font-weight: 400; }
+  .seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 7px; cursor: pointer; }
+  .seg button[aria-selected="true"] { background: var(--accent); color: #fff; font-weight: 600; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
+  .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+  .kpi { background: var(--panel); border-radius: 14px; padding: 12px; min-width: 0; }
+  .kpi .v { font-family: var(--num); font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .kpi .s { font-size: 12px; color: var(--faint); }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border-radius: 16px; padding: 14px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 { font-size: 14px; margin: 0; font-weight: 600; }
+  .card .hint { font-size: 12px; color: var(--faint); margin: 0; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th { text-align: right; color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 6px 8px; }
+  td { text-align: right; padding: 7px 8px; border-top: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  .tablewrap { overflow-x: auto; }
+  .rows { display: flex; flex-direction: column; gap: 7px; }
+  .row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 8.5em; gap: 10px; align-items: center; font-size: 13px; }
+  .row .bar { height: 10px; background: var(--panel2); border-radius: 5px; overflow: hidden; }
+  .row .bar b { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
+  .row .n { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .pair > div { background: var(--panel2); border-radius: 10px; padding: 10px; }
+  .pair .v { font-family: var(--num); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .pill.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+  .pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+  .login { max-width: 420px; margin: 8vh auto 0; background: var(--panel); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .login input { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--fg); font: inherit; }
+  .login button, .ghost { padding: 10px 14px; border-radius: 10px; border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  .ghost { background: transparent; border: 1px solid var(--line); color: var(--muted); font-weight: 400; font-size: 12px; padding: 6px 10px; }
+  .err { color: var(--bad); font-size: 13px; min-height: 1.2em; }
+  .foot { color: var(--faint); font-size: 12px; text-align: center; }
+  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 680px) { .grid { grid-template-columns: minmax(0, 1fr); } .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <form class="login" id="login" hidden>
+    <h1 style="font-size:18px;margin:0">Statistiche Sudoku Nonaryx</h1>
+    <p class="hint" style="margin:0;color:var(--muted)">Pannello privato. Inserisci il codice di accesso: resta salvato solo su questo dispositivo.</p>
+    <label class="label" for="tok">Codice di accesso</label>
+    <input id="tok" type="password" autocomplete="off" spellcheck="false" required>
+    <button type="submit">Entra</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+
+  <div id="app" hidden>
+    <header>
+      <h1>Sudoku Nonaryx <span>· statistiche</span></h1>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="seg" role="tablist" id="ranges">
+          <button role="tab" data-r="day" aria-selected="false">Giorno</button>
+          <button role="tab" data-r="week" aria-selected="true">Settimana</button>
+          <button role="tab" data-r="month" aria-selected="false">Mese</button>
+          <button role="tab" data-r="year" aria-selected="false">Anno</button>
+        </div>
+        <button class="ghost" id="logout" type="button">Esci</button>
+      </div>
+    </header>
+
+    <div class="kpis" style="margin-top:14px">
+      <div class="kpi"><div class="label">Account totali</div><div class="v" id="kAcc">–</div><div class="s" id="kAccNew"></div></div>
+      <div class="kpi"><div class="label">Partite</div><div class="v" id="kGames">–</div><div class="s" id="kGamesS"></div></div>
+      <div class="kpi"><div class="label">Hanno giocato</div><div class="v" id="kPlayers">–</div><div class="s">giocatori con almeno una partita</div></div>
+      <div class="kpi"><div class="label">Unici online</div><div class="v" id="kUnique">–</div><div class="s" id="kUniqueS"></div></div>
+      <div class="kpi"><div class="label">Picco online</div><div class="v" id="kPeak">–</div><div class="s" id="kPeakS"></div></div>
+      <div class="kpi"><div class="label">Con Google</div><div class="v" id="kGoogle">–</div><div class="s" id="kGoogleS"></div></div>
+    </div>
+
+    <div class="grid" style="margin-top:12px">
+      <section class="card wide">
+        <h2>Partite completate per difficoltà</h2>
+        <div class="legend" id="diffLegend"></div>
+        <svg id="cGames" viewBox="0 0 640 200" role="img" aria-label="Partite per periodo"></svg>
+      </section>
+      <section class="card wide">
+        <h2>Giocatori online</h2>
+        <div class="legend"><span><i style="background:var(--accent);opacity:.55"></i>picco</span><span><i style="background:var(--gold);height:3px"></i>media</span></div>
+        <svg id="cOnline" viewBox="0 0 640 170" role="img" aria-label="Online per periodo"></svg>
+        <p class="hint" id="onlineNote"></p>
+      </section>
+      <section class="card">
+        <h2>Nuovi account e giocatori attivi</h2>
+        <div class="legend"><span><i style="background:var(--ok)"></i>nuovi account</span><span><i style="background:var(--gold);height:3px"></i>giocatori con partite</span></div>
+        <svg id="cGrowth" viewBox="0 0 320 160" role="img" aria-label="Nuovi account"></svg>
+      </section>
+      <section class="card">
+        <h2>Ritorno dopo l'iscrizione</h2>
+        <p class="hint">Quota di nuovi account tornati a giocare entro 1, 7 e 30 giorni (account dell'ultimo anno).</p>
+        <div class="rows" id="retention"></div>
+      </section>
+      <section class="card">
+        <h2>Partite per ora del giorno</h2>
+        <svg id="cHours" viewBox="0 0 320 140" role="img" aria-label="Partite per ora"></svg>
+      </section>
+      <section class="card">
+        <h2>Online medio per ora · 30 giorni</h2>
+        <svg id="cOnHours" viewBox="0 0 320 140" role="img" aria-label="Online per ora"></svg>
+      </section>
+      <section class="card">
+        <h2>Partite per giorno della settimana</h2>
+        <svg id="cWeek" viewBox="0 0 320 140" role="img" aria-label="Partite per giorno della settimana"></svg>
+      </section>
+      <section class="card">
+        <h2>Paesi</h2>
+        <p class="hint">Ultimo paese noto di chi è entrato nella stanza.</p>
+        <div class="rows" id="countries"></div>
+      </section>
+      <section class="card wide">
+        <h2>Difficoltà</h2>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Difficoltà</th><th>Partite</th><th>Tempo medio</th><th>Mediano</th><th>Migliore</th><th>Errori medi</th><th>Aiuti medi</th></tr></thead>
+          <tbody id="diffTable"></tbody>
+        </table></div>
+      </section>
+      <section class="card">
+        <h2>Social</h2>
+        <div class="pair" id="social"></div>
+        <svg id="cSocial" viewBox="0 0 320 120" role="img" aria-label="Messaggi e sfide"></svg>
+        <div class="legend"><span><i style="background:var(--accent)"></i>messaggi</span><span><i style="background:var(--gold)"></i>sfide</span></div>
+      </section>
+      <section class="card">
+        <h2>Qualità dei risultati</h2>
+        <div class="pair" id="quality"></div>
+        <div class="rows" id="integrity"></div>
+      </section>
+    </div>
+    <p class="foot" id="foot" style="margin-top:14px"></p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var API = new URLSearchParams(location.search).get("api") || "https://api.nonaryx.it";
+  var KEY = "nonaryx-admin-token", range = "week", token = null;
+  var DIFF = ["Facile", "Medio", "Difficile", "Esperto", "Estremo"];
+  var DCOL = ["var(--d0)", "var(--d1)", "var(--d2)", "var(--d3)", "var(--d4)"];
+  var MESI = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
+  var GG = ["dom","lun","mar","mer","gio","ven","sab"];
+  var $ = function (id) { return document.getElementById(id); };
+  try { token = localStorage.getItem(KEY); } catch (e) {}
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function fmtT(t, r) { var d = new Date(t * 1000);
+    if (r === "day") return pad(d.getHours()) + ":" + pad(d.getMinutes());
+    if (r === "week") return GG[d.getDay()] + " " + d.getDate() + " " + pad(d.getHours()) + ":00";
+    return d.getDate() + " " + MESI[d.getMonth()] + (r === "year" ? " " + d.getFullYear() : ""); }
+  function fmtTick(t, r) { var d = new Date(t * 1000);
+    if (r === "day") return pad(d.getHours()) + ":00";
+    if (r === "week") return GG[d.getDay()] + " " + d.getDate();
+    if (r === "year") return MESI[d.getMonth()];
+    return d.getDate() + " " + MESI[d.getMonth()]; }
+  function fmtMs(ms) { if (ms == null) return "–"; var s = Math.round(ms / 1000), m = Math.floor(s / 60);
+    return m >= 60 ? Math.floor(m / 60) + "h " + pad(m % 60) + "m" : m + ":" + pad(s % 60); }
+  function pct(a, b) { return b ? Math.round(100 * a / b) + "%" : "–"; }
+  function niceMax(v) { if (v <= 4) return 4; var p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; return (m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; }
+  function tickEvery(n, r) { return r === "day" ? 16 : r === "week" ? 24 : r === "month" ? 5 : 31; }
+
+  // Bar chart: series = [{values:[..], color}] stacked; optional line overlay.
+  function bars(svg, W, H, labels, stacks, opts) {
+    opts = opts || {};
+    var L = 28, R = 6, T = 8, B = 20, n = labels.length;
+    var totals = labels.map(function (_, i) { return stacks.reduce(function (s, st) { return s + (st.values[i] || 0); }, 0); });
+    var lineMax = opts.line ? Math.max.apply(null, opts.line.values.map(function (v) { return v || 0; })) : 0;
+    var maxV = niceMax(Math.max(1, Math.max.apply(null, totals), lineMax));
+    var cw = (W - L - R) / n, y = function (v) { return T + (H - T - B) * (1 - v / maxV); };
+    var o = "";
+    [0, maxV / 2, maxV].forEach(function (g) {
+      o += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(g) + '" y2="' + y(g) + '" stroke="var(--line)"/>' +
+           '<text x="' + (L - 5) + '" y="' + (y(g) + 3) + '" text-anchor="end" fill="var(--faint)" font-size="9">' + (Math.round(g * 10) / 10) + '</text>';
+    });
+    labels.forEach(function (lab, i) {
+      var x = L + i * cw, base = H - B, tip = (opts.tip ? opts.tip(i) : lab + ": " + totals[i]);
+      stacks.forEach(function (st) {
+        var v = st.values[i] || 0; if (!v) return;
+        var h = (H - T - B) * v / maxV;
+        o += '<rect x="' + (x + cw * 0.12).toFixed(2) + '" y="' + (base - h).toFixed(2) + '" width="' + Math.max(0.6, cw * 0.76).toFixed(2) + '" height="' + h.toFixed(2) + '" fill="' + st.color + '"' + (st.opacity ? ' fill-opacity="' + st.opacity + '"' : '') + '/>';
+        base -= h;
+      });
+      o += '<rect x="' + x.toFixed(2) + '" y="' + T + '" width="' + cw.toFixed(2) + '" height="' + (H - T - B) + '" fill="transparent"><title>' + esc(tip) + '</title></rect>';
+      var every = opts.every || 1;
+      if (i % every === 0) o += '<text x="' + (x + (every === 1 ? cw / 2 : 0)).toFixed(1) + '" y="' + (H - 6) + '" fill="var(--faint)" font-size="9"' + (every === 1 ? ' text-anchor="middle"' : '') + '>' + esc(opts.tick ? opts.tick(i) : lab) + '</text>';
+    });
+    if (opts.line) {
+      var d = "";
+      opts.line.values.forEach(function (v, i) { if (v == null) return; d += (d ? "L" : "M") + (L + i * cw + cw / 2).toFixed(2) + " " + y(v).toFixed(2) + " "; });
+      if (d) o += '<path d="' + d + '" fill="none" stroke="' + opts.line.color + '" stroke-width="1.8" stroke-linejoin="round" vector-effect="non-scaling-stroke" pointer-events="none"/>';
+    }
+    svg.innerHTML = o;
+  }
+
+  function rows(el, items, maxV) {
+    maxV = maxV || Math.max.apply(null, items.map(function (x) { return x.v; }).concat([1]));
+    el.innerHTML = items.length ? items.map(function (x) {
+      return '<div class="row"><span>' + esc(x.k) + '</span><span class="bar"><b style="width:' + (100 * x.v / maxV).toFixed(1) + '%' + (x.c ? ';background:' + x.c : '') + '"></b></span><span class="n">' + esc(x.n != null ? x.n : x.v) + '</span></div>';
+    }).join("") : '<p class="hint">Nessun dato ancora.</p>';
+  }
+
+  function render(d) {
+    var r = d.range, t = d.totals, b = d.buckets, ev = tickEvery(b.length, r);
+    $("kAcc").textContent = t.accounts_total; $("kAccNew").textContent = "+" + t.new_accounts + " nel periodo";
+    $("kGames").textContent = t.games; $("kGamesS").textContent = t.players ? (t.games / t.players).toFixed(1) + " a testa" : "";
+    $("kPlayers").textContent = t.players;
+    $("kUnique").textContent = d.online.unique.today; $("kUniqueS").textContent = "oggi · 7g " + d.online.unique.d7 + " · 30g " + d.online.unique.d30;
+    $("kPeak").textContent = d.online.peak ? d.online.peak.value : 0; $("kPeakS").textContent = d.online.peak ? fmtT(d.online.peak.t, "month") + " " + new Date(d.online.peak.t * 1000).toTimeString().slice(0, 5) : "nel periodo";
+    $("kGoogle").textContent = t.accounts_google; $("kGoogleS").textContent = pct(t.accounts_google, t.accounts_total) + " degli account";
+
+    $("diffLegend").innerHTML = DIFF.map(function (n, i) { return '<span><i style="background:' + DCOL[i] + '"></i>' + n + '</span>'; }).join("");
+    bars($("cGames"), 640, 200, b.map(function (x) { return fmtT(x.t, r); }),
+      DIFF.map(function (_, k) { return { values: b.map(function (x) { return x.by_diff[k]; }), color: DCOL[k] }; }),
+      { every: ev, tick: function (i) { return fmtTick(b[i].t, r); },
+        tip: function (i) { var x = b[i]; return fmtT(x.t, r) + ": " + x.games + " partite, " + x.players + " giocatori" + (x.games ? " (" + DIFF.map(function (n, k) { return x.by_diff[k] ? n + " " + x.by_diff[k] : ""; }).filter(Boolean).join(", ") + ")" : ""); } });
+
+    var ob = d.online.buckets;
+    bars($("cOnline"), 640, 170, ob.map(function (x) { return fmtT(x.t, r); }),
+      [{ values: ob.map(function (x) { return x.peak || 0; }), color: "var(--accent)", opacity: .55 }],
+      { every: tickEvery(ob.length, r), tick: function (i) { return fmtTick(ob[i].t, r); },
+        line: { values: ob.map(function (x) { return x.samples ? x.avg : null; }), color: "var(--gold)" },
+        tip: function (i) { var x = ob[i]; return fmtT(x.t, r) + ": " + (x.samples ? "picco " + x.peak + ", media " + x.avg : "nessun dato"); } });
+    $("onlineNote").textContent = d.online.since ? "Campioni al minuto dal " + fmtT(d.online.since, "year") + "." : "La raccolta dei campioni online è appena partita.";
+
+    bars($("cGrowth"), 320, 160, b.map(function (x) { return fmtT(x.t, r); }),
+      [{ values: b.map(function (x) { return x.new_accounts; }), color: "var(--ok)" }],
+      { every: ev, tick: function (i) { return fmtTick(b[i].t, r); }, line: { values: b.map(function (x) { return x.players; }), color: "var(--gold)" },
+        tip: function (i) { return fmtT(b[i].t, r) + ": " + b[i].new_accounts + " nuovi account, " + b[i].players + " giocatori con partite"; } });
+
+    rows($("retention"), d.retention.map(function (x) {
+      return { k: "entro " + x.days + (x.days === 1 ? " giorno" : " giorni"), v: x.pct || 0, n: x.base ? x.pct + "% (" + x.returned + "/" + x.base + ")" : "–", c: "var(--ok)" };
+    }), 100);
+
+    var H24 = []; for (var h = 0; h < 24; h++) H24.push(pad(h));
+    bars($("cHours"), 320, 140, H24, [{ values: d.hours, color: "var(--accent)" }],
+      { every: 3, tick: function (i) { return H24[i]; }, tip: function (i) { return H24[i] + ":00–" + H24[i] + ":59: " + d.hours[i] + " partite"; } });
+    bars($("cOnHours"), 320, 140, H24, [{ values: d.online.hourly.map(function (x) { return x.avg || 0; }), color: "var(--gold)" }],
+      { every: 3, tick: function (i) { return H24[i]; }, tip: function (i) { var x = d.online.hourly[i]; return H24[i] + ":00: " + (x.avg == null ? "nessun dato" : "media " + x.avg + ", picco " + x.peak); } });
+    var WD = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+    bars($("cWeek"), 320, 140, WD, [{ values: d.weekdays, color: "var(--d3)" }], { tip: function (i) { return WD[i] + ": " + d.weekdays[i] + " partite"; } });
+
+    var totC = d.countries.reduce(function (s, c) { return s + c.players; }, 0);
+    rows($("countries"), d.countries.slice(0, 12).map(function (c) {
+      var name = c.country; try { if (c.country !== "??") name = new Intl.DisplayNames(["it"], { type: "region" }).of(c.country); } catch (e) {}
+      return { k: c.country === "??" ? "Sconosciuto" : name, v: c.players, n: c.players + " · " + pct(c.players, totC) };
+    }));
+
+    $("diffTable").innerHTML = d.difficulty.map(function (x, i) {
+      return "<tr><td><i style=\"display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:" + DCOL[i] + "\"></i>" + x.name + "</td><td>" + x.games + "</td><td>" + fmtMs(x.avg_ms) + "</td><td>" + fmtMs(x.median_ms) +
+        "</td><td>" + fmtMs(x.best_ms) + "</td><td>" + (x.avg_errors == null ? "–" : x.avg_errors) + "</td><td>" + (x.avg_hints == null ? "–" : x.avg_hints) + "</td></tr>";
+    }).join("");
+
+    var s = d.social;
+    $("social").innerHTML =
+      '<div><div class="label">Messaggi</div><div class="v">' + s.messages + '</div></div>' +
+      '<div><div class="label">Sfide inviate</div><div class="v">' + s.invites + '</div><div class="hint">' + pct(s.invites_accepted, s.invites) + ' accettate</div></div>' +
+      '<div><div class="label">Richieste amicizia</div><div class="v">' + s.friend_requests + '</div><div class="hint">' + pct(s.friend_requests_accepted, s.friend_requests) + ' accettate · ' + s.friendships_total + ' amicizie totali</div></div>' +
+      '<div><div class="label">Segnalazioni</div><div class="v">' + s.reports_in_range + '</div><div class="hint"><span class="pill ' + (s.reports_open ? "bad" : "ok") + '">' + s.reports_open + ' da esaminare</span></div></div>';
+    bars($("cSocial"), 320, 120, b.map(function (x) { return fmtT(x.t, r); }),
+      [{ values: b.map(function (x) { return x.messages; }), color: "var(--accent)" }, { values: b.map(function (x) { return x.invites; }), color: "var(--gold)" }],
+      { every: ev, tick: function (i) { return fmtTick(b[i].t, r); }, tip: function (i) { return fmtT(b[i].t, r) + ": " + b[i].messages + " messaggi, " + b[i].invites + " sfide, " + b[i].friend_requests + " richieste amicizia"; } });
+
+    $("quality").innerHTML =
+      '<div><div class="label">Risultati sospetti</div><div class="v">' + t.suspicious + '</div><div class="hint">' + pct(t.suspicious, t.games) + ' delle partite</div></div>' +
+      '<div><div class="label">Segnali dal dispositivo</div><div class="v">' + t.client_flagged + '</div><div class="hint">root, debug o simili</div></div>';
+    var IL = { ok: "Play Integrity ok", fail: "Play Integrity fallita", missing: "Token mancante", off: "Verifica spenta", "n/d": "Prima della verifica" };
+    rows($("integrity"), Object.keys(t.integrity).map(function (k) { return { k: IL[k] || k, v: t.integrity[k], c: k === "ok" ? "var(--ok)" : k === "fail" ? "var(--bad)" : "var(--faint)" }; }));
+
+    $("foot").textContent = "Aggiornato alle " + new Date().toLocaleTimeString("it-IT") + " · si aggiorna ogni minuto · solo dati aggregati, nessun nome.";
+  }
+
+  var timer = null;
+  function load() {
+    fetch(API + "/admin/stats?range=" + range, { cache: "no-store", headers: { "X-Admin-Token": token } })
+      .then(function (res) {
+        if (res.status === 403 || res.status === 404) { var e = new Error("auth"); e.auth = true; throw e; }
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (d) { if (d.range === range) { showApp(); render(d); } })
+      .catch(function (e) {
+        if (e.auth) { try { localStorage.removeItem(KEY); } catch (x) {} token = null; showLogin("Codice non valido."); }
+        else $("foot").textContent = "Server non raggiungibile, riprovo tra un minuto.";
+      });
+  }
+  function showApp() { $("login").hidden = true; $("app").hidden = false; if (!timer) timer = setInterval(load, 60000); }
+  function showLogin(msg) { clearInterval(timer); timer = null; $("app").hidden = true; $("login").hidden = false; $("loginErr").textContent = msg || ""; $("tok").focus(); }
+
+  $("login").addEventListener("submit", function (e) {
+    e.preventDefault();
+    token = $("tok").value.trim(); if (!token) return;
+    try { localStorage.setItem(KEY, token); } catch (x) {}
+    $("loginErr").textContent = "Verifico…"; load();
+  });
+  $("logout").addEventListener("click", function () { try { localStorage.removeItem(KEY); } catch (x) {} token = null; $("tok").value = ""; showLogin(); });
+  Array.prototype.forEach.call(document.querySelectorAll("#ranges button"), function (btn) {
+    btn.addEventListener("click", function () {
+      range = btn.dataset.r;
+      Array.prototype.forEach.call(document.querySelectorAll("#ranges button"), function (o) { o.setAttribute("aria-selected", String(o === btn)); });
+      load();
+    });
+  });
+  if (token) load(); else showLogin();
+})();
+</script>
+</body>
+</html>
