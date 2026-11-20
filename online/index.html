@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0d1022">
+<title>Nonaryx Online</title>
+<style>
+  /* Una sola schermata: stato del server in alto, il numero grande al centro,
+     dettaglio e andamento sotto. Palette della classifica di nonaryx.it. */
+  :root {
+    color-scheme: dark;
+    --bg: #0d1022; --panel: #1a1e38; --line: #262c52;
+    --fg: #e8eaf6; --muted: #9aa0c3; --faint: #6b7199;
+    --accent: #4f6df5; --gold: #ffd54f;
+    --ok: #3ddc97; --warn: #ffb547; --bad: #ff6b7a;
+    --num: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding-block: max(20px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-bottom, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 460px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .01em; }
+  header h1 span { color: var(--muted); font-weight: 400; }
+  .status { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted);
+            padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .status[data-s="ok"] .dot { background: var(--ok); box-shadow: 0 0 0 0 var(--ok); animation: pulse 2s infinite; }
+  .status[data-s="warn"] .dot { background: var(--warn); }
+  .status[data-s="bad"] .dot { background: var(--bad); }
+  .status[data-s="bad"] { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); }
+                     70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+  .hero { background: var(--panel); border-radius: 20px; padding: 26px 20px 22px; text-align: center; }
+  .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .09em; font-weight: 600; }
+  .big { font-family: var(--num); font-size: clamp(76px, 26vw, 120px); line-height: 1; font-weight: 700;
+         font-variant-numeric: tabular-nums; margin: 10px 0 6px; transition: color .3s; }
+  .big.bump { color: var(--gold); }
+  .sub { color: var(--muted); font-size: 13px; }
+  .sub b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tile { background: var(--panel); border-radius: 14px; padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .tile .v { font-family: var(--num); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tile .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .tile .bar i { display: block; height: 100%; width: 0; transition: width .5s; }
+  .tile.play .bar i { background: var(--gold); }
+  .tile.idle .bar i { background: var(--accent); }
+
+  .trend { background: var(--panel); border-radius: 14px; padding: 14px 14px 10px; }
+  .trend .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .trend .head span { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  svg { display: block; width: 100%; height: 70px; margin-top: 8px; }
+  .foot { color: var(--faint); font-size: 12px; line-height: 1.5; text-align: center; }
+  .foot a { color: #8fa2ff; }
+  @media (prefers-reduced-motion: reduce) { .status[data-s="ok"] .dot { animation: none; } .big { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Sudoku Nonaryx <span>· live</span></h1>
+    <div class="status" id="status" data-s="wait"><span class="dot"></span><span id="statusText">Connessione…</span></div>
+  </header>
+
+  <section class="hero" aria-live="polite">
+    <div class="label">Giocatori nell'app adesso</div>
+    <div class="big" id="active">–</div>
+    <div class="sub">attivi nell'ultimo minuto e mezzo</div>
+  </section>
+
+  <div class="label">Nella stanza (ultimi 5 minuti): <b id="online" style="color:var(--fg)">–</b></div>
+  <div class="split">
+    <div class="tile play">
+      <div class="label">In partita</div>
+      <div class="v" id="playing">–</div>
+      <div class="bar"><i id="barPlay"></i></div>
+    </div>
+    <div class="tile idle">
+      <div class="label">Nei menu</div>
+      <div class="v" id="idle">–</div>
+      <div class="bar"><i id="barIdle"></i></div>
+    </div>
+  </div>
+
+  <section class="trend">
+    <div class="head"><div class="label">Andamento (da quando è aperta)</div><span id="peak"></span></div>
+    <svg id="spark" viewBox="0 0 300 70" preserveAspectRatio="none" role="img" aria-label="Andamento giocatori online"></svg>
+  </section>
+
+  <p class="foot">
+    Si aggiorna ogni 10 secondi · <span id="updated">mai aggiornato</span><br>
+    Conta solo chi ha la classifica online attiva e non si è nascosto dalla stanza.
+    <a href="/classifica/">Classifica</a>
+  </p>
+</div>
+
+<script>
+(function () {
+  var API = new URLSearchParams(location.search).get("api") || "https://api.nonaryx.it";
+  var EVERY = 10000, KEEP = 180; // 180 campioni da 10 s = 30 minuti
+  var $ = function (id) { return document.getElementById(id); };
+  var samples = [], last = null, lastOkAt = 0, timer = null;
+
+  function setStatus(s, text) { $("status").dataset.s = s; $("statusText").textContent = text; }
+
+  function draw() {
+    var svg = $("spark"), W = 300, H = 70, pad = 6;
+    if (samples.length < 2) { svg.innerHTML = '<text x="150" y="40" text-anchor="middle" fill="var(--faint)" font-size="11">Raccolgo i dati…</text>'; return; }
+    var max = Math.max(1, Math.max.apply(null, samples.map(function (s) { return s.v; })));
+    // Fino a 5 minuti di dati la curva occupa tutta la larghezza, poi scorre.
+    var n = samples.length, step = (W - 2 * pad) / (Math.min(KEEP, Math.max(n, 30)) - 1), x0 = W - pad - (n - 1) * step;
+    var pts = samples.map(function (s, i) {
+      return [x0 + i * step, H - pad - (s.v / max) * (H - 2 * pad)];
+    });
+    var line = pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
+    var area = line + " L" + pts[n - 1][0].toFixed(1) + " " + (H - pad) + " L" + pts[0][0].toFixed(1) + " " + (H - pad) + " Z";
+    var end = pts[n - 1];
+    svg.innerHTML =
+      '<line x1="0" x2="300" y1="' + (H - pad) + '" y2="' + (H - pad) + '" stroke="var(--line)" stroke-width="1"/>' +
+      '<path d="' + area + '" fill="var(--accent)" fill-opacity=".18"/>' +
+      '<path d="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>' +
+      '<circle cx="' + end[0].toFixed(1) + '" cy="' + end[1].toFixed(1) + '" r="3.5" fill="var(--gold)"/>';
+    $("peak").textContent = "picco " + max;
+  }
+
+  function render(d) {
+    var big = $("active");
+    if (last && d.active_now > last.active_now) { big.classList.add("bump"); setTimeout(function () { big.classList.remove("bump"); }, 900); }
+    big.textContent = d.active_now;
+    $("online").textContent = d.online;
+    $("playing").textContent = d.playing;
+    $("idle").textContent = d.idle;
+    var tot = Math.max(1, d.online);
+    $("barPlay").style.width = (100 * d.playing / tot) + "%";
+    $("barIdle").style.width = (100 * d.idle / tot) + "%";
+    document.title = "(" + d.active_now + ") Nonaryx Online";
+    samples.push({ t: d.ts, v: d.online });
+    if (samples.length > KEEP) samples.shift();
+    draw();
+    last = d;
+  }
+
+  function tick() {
+    fetch(API + "/online", { cache: "no-store", headers: { Accept: "application/json" } })
+      .then(function (r) {
+        if (r.status === 429) throw { soft: true };
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        lastOkAt = Date.now();
+        setStatus("ok", "Server attivo");
+        render(d);
+        $("updated").textContent = "ultimo dato " + new Date().toLocaleTimeString("it-IT");
+      })
+      .catch(function (e) {
+        if (e && e.soft) { setStatus("warn", "Rallento…"); return; }
+        var stale = lastOkAt && Date.now() - lastOkAt < 30000;
+        setStatus(stale ? "warn" : "bad", stale ? "Connessione instabile" : "Server non raggiungibile");
+      });
+  }
+
+  function start() { if (!timer) { tick(); timer = setInterval(tick, EVERY); } }
+  function stop() { clearInterval(timer); timer = null; }
+  document.addEventListener("visibilitychange", function () { document.hidden ? stop() : start(); });
+  draw();
+  start();
+})();
+</script>
+</body>
+</html>
