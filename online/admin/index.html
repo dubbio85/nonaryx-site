@@ -147,7 +147,7 @@
 
     <section class="card" id="ambCard" style="margin-top:14px">
       <h2>Ambasciatori e referral</h2>
-      <p class="hint">Chi ha portato giocatori. <b>Primi 3</b> = vincitori della gara del mese scorso (badge per questo mese); <b>soglia</b> = portati e assidui sufficienti.</p>
+      <p class="hint">Chi ha portato giocatori. <b>Primi 3</b> = vincitori della gara del mese scorso (badge per questo mese); <b>soglia</b> = portati e assidui sufficienti. Con <b>dettagli</b> vedi gli invitati: <b>stessa rete</b> o <b>stesso telefono</b> indicano possibili account doppi e puoi escluderli a mano.</p>
       <div class="tablewrap"><table><thead><tr><th>Giocatore</th><th>Stato</th><th>Portati</th><th>Assidui</th><th>Mese</th><th>Ultima partita</th></tr></thead><tbody id="ambTable"></tbody></table></div>
       <details style="margin-top:6px"><summary class="label" style="cursor:pointer">Regole e link Telegram</summary>
         <form id="ambForm" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:8px"></form>
@@ -617,7 +617,8 @@
 
   // ---- Ambasciatori e regole ----
   var RULE_LABELS = { amb_top_n: "Posti gara del mese", top_min_joined: "Portati minimi per la gara",
-    amb_min_joined: "Soglia: portati", amb_min_referrals: "Soglia: assidui", ref_distinct_ip: "Anti account doppi (1 sì, 0 no)", ref_min_games: "Assiduo: partite",
+    amb_min_joined: "Soglia: portati", amb_min_referrals: "Soglia: assidui", ref_distinct_ip: "Anti account doppi (1 sì, 0 no)",
+    ref_distinct_device: "Anti doppi stesso telefono (1 sì, 0 no)", ref_min_games: "Assiduo: partite",
     ref_min_days: "Assiduo: giorni diversi", ref_window_days: "Assiduo: entro giorni", amb_inactive_days: "Sospeso dopo giorni inattivo",
     amb_regain_window: "Riconquista: finestra giorni", amb_regain_days: "Riconquista: giorni giocati",
     telegram_community_url: "Link community Telegram", telegram_ambassador_url: "Link gruppo Ambasciatori" };
@@ -626,7 +627,11 @@
     var ST = { active: "⭐ Attivo", suspended: "Sospeso", none: "–" };
     $("ambTable").innerHTML = d.people.length ? d.people.map(function (p) {
       return "<tr><td>" + esc(p.nickname) + "</td><td>" + ST[p.state] + (p.state === "active" ? ' <span class="pill">' + (p.reason === "top" ? "primi 3" : "soglia") + "</span>" : "") +
-        "</td><td>" + p.referrals_total + "</td><td>" + p.referrals_active + "</td><td>" + (p.month_rank ? p.month_rank + "° (" + p.month_joined + ")" : "–") +
+        "</td><td>" + p.referrals_total +
+        (p.same_network ? ' <span class="pill">' + p.same_network + " stessa rete</span>" : "") +
+        (p.same_device ? ' <span class="pill">' + p.same_device + " stesso tel.</span>" : "") +
+        (p.referrals_total ? ' <a href="#" data-inv="' + p.account_id + '">dettagli</a>' : "") +
+        "</td><td>" + p.referrals_active + "</td><td>" + (p.month_rank ? p.month_rank + "° (" + p.month_joined + ")" : "–") +
         "</td><td>" + ago(p.last_game_at) + "</td></tr>";
     }).join("") : '<tr><td colspan="6" class="hint">Ancora nessun invito.</td></tr>';
     var f = $("ambForm"); if (f.dataset.ready) return; f.dataset.ready = "1";
@@ -641,6 +646,47 @@
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) { if (d) renderAmb(d); }).catch(function () {});
   }
+  $("ambTable").addEventListener("click", function (e) {
+    var a = e.target.closest("[data-inv]");
+    if (a) {
+      e.preventDefault();
+      var row = a.closest("tr"), next = row.nextElementSibling;
+      if (next && next.dataset.invRow) { next.remove(); return; }
+      var tr = document.createElement("tr"); tr.dataset.invRow = "1";
+      tr.innerHTML = '<td colspan="6" class="hint">Carico…</td>';
+      row.parentNode.insertBefore(tr, row.nextElementSibling);
+      fetch(API + "/admin/invitees?account_id=" + encodeURIComponent(a.dataset.inv),
+            { cache: "no-store", headers: { "X-Admin-Token": token } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d) { tr.innerHTML = '<td colspan="6" class="hint">Errore.</td>'; return; }
+          tr.innerHTML = '<td colspan="6">' + (d.invitees.length ? d.invitees.map(function (i) {
+            var flags = [];
+            if (i.same_network) flags.push("stessa rete");
+            if (i.same_device) flags.push("stesso telefono");
+            if (i.blocked) flags.push("bloccato");
+            if (i.excluded) flags.push("escluso");
+            return '<div class="rep" style="display:flex;gap:8px;align-items:center;justify-content:space-between">' +
+              '<span><b>' + esc(i.nickname) + '</b> · ' + i.games + ' partite · ' + ago(i.referred_at) +
+              (flags.length ? ' <span class="pill">' + flags.join(" · ") + "</span>" : "") + "</span>" +
+              '<button type="button" data-exc="' + i.account_id + '" data-on="' + (i.excluded ? 0 : 1) + '">' +
+              (i.excluded ? "Ripristina" : "Escludi") + "</button></div>";
+          }).join("") : "Nessun invitato.") + "</td>";
+        }).catch(function () { tr.innerHTML = '<td colspan="6" class="hint">Errore.</td>'; });
+      return;
+    }
+    var b = e.target.closest("[data-exc]"); if (!b) return;
+    b.disabled = true;
+    fetch(API + "/admin/invitees/exclude", { method: "POST", cache: "no-store",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify({ account_id: b.dataset.exc, excluded: b.dataset.on === "1" }) })
+      .then(function (r) {
+        if (r.ok) {
+          var tr2 = b.closest("tr"), link = tr2.previousElementSibling.querySelector("[data-inv]");
+          tr2.remove(); link.click(); loadAmb();
+        } else b.disabled = false;
+      }).catch(function () { b.disabled = false; });
+  });
   $("ambSave").addEventListener("click", function () {
     var body = {};
     Array.prototype.forEach.call($("ambForm").querySelectorAll("input"), function (el) {

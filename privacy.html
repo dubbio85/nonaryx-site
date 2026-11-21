@@ -40,6 +40,9 @@ Vengono invece trattati i seguenti dati, come dichiarato anche nella sezione
   per la stanza online, l'analisi, la pubblicità e la prevenzione degli abusi;</li>
   <li><strong>Indirizzo email Google</strong>, solo se usi l'accesso con Google:
   trattato in modo temporaneo per la verifica e <strong>non memorizzato</strong>;</li>
+  <li><strong>Identificativo anonimo del dispositivo</strong> (ID generato dal sistema
+  per la coppia app+dispositivo): per rilevare account multipli sullo stesso
+  telefono e prevenire abusi del sistema di inviti;</li>
   <li><strong>Identificatori del dispositivo/pubblicitari e dati diagnostici</strong>,
   raccolti dall'SDK pubblicitario (vedi sotto).</li>
 </ul>
@@ -97,8 +100,12 @@ l'account classifica.</p>
 <p>Per proteggere la classifica, insieme ai risultati il server conserva
 l'indirizzo IP di invio e può verificare tramite <strong>Google Play
 Integrity</strong> che il risultato provenga dall'app originale installata da
-Google Play. Questi dati servono solo a individuare risultati falsificati e
-abusi.</p>
+Google Play. Al tuo account viene inoltre associato un
+<strong>identificativo anonimo del dispositivo</strong> (l'ID che Android
+genera per la coppia app+dispositivo): non identifica la tua persona e non è
+visibile agli altri giocatori, ma permette di riconoscere account multipli
+creati sullo stesso telefono per abusare del sistema di inviti. Questi dati
+servono solo a individuare risultati falsificati e abusi.</p>
 
 <h2>Segnalazioni di problemi e moderazione</h2>
 <p>Con <strong>Segnala un problema</strong> puoi inviare allo sviluppatore un
@@ -213,6 +220,9 @@ section:</p>
   for the online room, analytics, advertising and abuse prevention;</li>
   <li><strong>Google email address</strong>, only if you use Google sign-in:
   processed transiently for verification and <strong>not stored</strong>;</li>
+  <li><strong>Anonymous device identifier</strong> (a system-generated ID for the
+  app+device pair): to detect multiple accounts on the same phone and prevent
+  abuse of the invite system;</li>
   <li><strong>Device/advertising identifiers and diagnostics</strong>, collected by
   the advertising SDK (see below).</li>
 </ul>
@@ -268,7 +278,11 @@ this link, losing your device means losing your leaderboard account.</p>
 <h2>Integrity and abuse prevention</h2>
 <p>To protect the leaderboard, the server keeps the submitting IP address with
 each result and may use <strong>Google Play Integrity</strong> to check that the
-result comes from the genuine app installed from Google Play. This data is used
+result comes from the genuine app installed from Google Play. Your account is
+also linked to an <strong>anonymous device identifier</strong> (the ID Android
+generates for the app+device pair): it does not identify you and is never
+shown to other players, but it lets us detect multiple accounts created on the
+same phone to abuse the invite system. This data is used
 only to detect forged results and abuse.</p>
 
 <h2>Problem reports and moderation</h2>
