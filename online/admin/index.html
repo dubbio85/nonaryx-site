@@ -139,6 +139,22 @@
       <div class="rows" id="flaggedList"></div>
     </section>
 
+    <section class="card" id="ideasCard" style="margin-top:14px">
+      <h2>Idee dei giocatori</h2>
+      <p class="hint">Proposte da "Proponi un'idea". Rispondi entro 48 ore: la risposta la vede il giocatore nell'app. Con un <b>titolo pubblico</b> e lo stato In programma / In lavorazione / Uscita, l'idea compare su <a href="/aggiornamenti/" style="color:var(--accent)">Prossimi aggiornamenti</a> (senza il nome del giocatore).</p>
+      <div class="rows" id="ideasList"><p class="hint">Nessuna idea da valutare.</p></div>
+    </section>
+
+    <section class="card" id="ambCard" style="margin-top:14px">
+      <h2>Ambasciatori e referral</h2>
+      <p class="hint">Chi ha portato giocatori. <b>Primi 3</b> = vincitori della gara del mese scorso (badge per questo mese); <b>soglia</b> = portati e assidui sufficienti.</p>
+      <div class="tablewrap"><table><thead><tr><th>Giocatore</th><th>Stato</th><th>Portati</th><th>Assidui</th><th>Mese</th><th>Ultima partita</th></tr></thead><tbody id="ambTable"></tbody></table></div>
+      <details style="margin-top:6px"><summary class="label" style="cursor:pointer">Regole e link Telegram</summary>
+        <form id="ambForm" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:8px"></form>
+        <div style="display:flex;gap:8px;margin-top:8px"><button class="primary" id="ambSave" type="button">Salva regole</button><div class="err" id="ambMsg"></div></div>
+      </details>
+    </section>
+
     <div class="kpis" style="margin-top:14px">
       <div class="kpi"><div class="label">Account totali</div><div class="v" id="kAcc">–</div><div class="s" id="kAccNew"></div></div>
       <div class="kpi"><div class="label">Partite</div><div class="v" id="kGames">–</div><div class="s" id="kGamesS"></div></div>
@@ -420,13 +436,14 @@
   }
 
   // ---- segnalazioni: contenuti scritti dagli utenti, sempre passati da esc() ----
-  var baseTitle = document.title, todo = { rep: 0, prob: 0, flag: 0 };
+  var baseTitle = document.title, todo = { rep: 0, prob: 0, flag: 0, idea: 0 };
   function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
   function updateBadge() {
-    var n = todo.rep + todo.prob + todo.flag, parts = [];
+    var n = todo.rep + todo.prob + todo.flag + todo.idea, parts = [];
     if (todo.rep) parts.push(plural(todo.rep, "segnalazione", "segnalazioni"));
     if (todo.prob) parts.push(plural(todo.prob, "problema", "problemi"));
     if (todo.flag) parts.push(plural(todo.flag, "sospetto", "sospetti"));
+    if (todo.idea) parts.push(plural(todo.idea, "idea", "idee"));
     document.title = (n ? "(" + n + ") " : "") + baseTitle;
     $("repBadge").hidden = !n;
     $("repBadge").textContent = "⚠ " + parts.join(" · ");
@@ -469,7 +486,7 @@
       .catch(function () { b.disabled = false; });
   });
   $("repBadge").addEventListener("click", function () {
-    var first = ["reportsCard", "problemsCard", "flaggedCard"].filter(function (id) { return !$(id).hidden; })[0];
+    var first = ["reportsCard", "problemsCard", "flaggedCard", "ideasCard"].filter(function (id) { return !$(id).hidden; })[0];
     if (first) $(first).scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
@@ -563,7 +580,83 @@
       body: JSON.stringify({ result_id: +b.dataset.rid, action: b.dataset.a }) })
       .then(function () { loadFlagged(); load(); }).catch(function () { b.disabled = false; });
   });
-  function loadInboxes() { loadReports(); loadProblems(); loadFlagged(); }
+  // ---- idee dei giocatori ----
+  var IDEA_ST = { "new": "Nuova", review: "In valutazione", planned: "In programma", in_progress: "In lavorazione", released: "Uscita", declined: "Scartata" };
+  function renderIdeas(d) {
+    var list = d.ideas || [];
+    todo.idea = d.open || 0; updateBadge();
+    $("ideasList").innerHTML = list.length ? list.map(function (x) {
+      var when = new Date(x.created * 1000).toLocaleString("it-IT");
+      var opts = Object.keys(IDEA_ST).map(function (k) { return '<option value="' + k + '"' + (k === x.status ? " selected" : "") + '>' + IDEA_ST[k] + '</option>'; }).join("");
+      return '<div class="rep" data-iid="' + x.id + '">' +
+        '<div class="who"><b>' + esc(x.nickname) + '</b>' + (x.ambassador ? ' <span class="pill ok">⭐ Ambasciatore</span>' : '') + '</div>' +
+        '<div class="meta">' + esc(when) + '</div>' +
+        '<div class="msg">' + esc(x.text) + '</div>' +
+        '<select class="field" data-k="status">' + opts + '</select>' +
+        '<textarea class="field" data-k="reply" rows="2" maxlength="1000" placeholder="Risposta al giocatore">' + esc(x.reply || "") + '</textarea>' +
+        '<input class="field" data-k="public_title" maxlength="120" placeholder="Titolo pubblico (facoltativo)" value="' + esc(x.public_title || "") + '">' +
+        '<div class="act"><button class="primary" data-save="' + x.id + '">Salva</button></div>' +
+      '</div>';
+    }).join("") : '<p class="hint">Nessuna idea da valutare.</p>';
+  }
+  function loadIdeas() {
+    fetch(API + "/admin/ideas", { cache: "no-store", headers: { "X-Admin-Token": token } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d) renderIdeas(d); }).catch(function () {});
+  }
+  $("ideasList").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-save]"); if (!b) return;
+    var box = b.closest(".rep"), body = { idea_id: +b.dataset.save };
+    Array.prototype.forEach.call(box.querySelectorAll("[data-k]"), function (el) { body[el.dataset.k] = el.value; });
+    b.disabled = true; b.textContent = "Salvo…";
+    fetch(API + "/admin/ideas/update", { method: "POST", cache: "no-store",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token }, body: JSON.stringify(body) })
+      .then(function (r) { b.textContent = r.ok ? "Salvato ✓" : "Errore"; setTimeout(loadIdeas, 900); })
+      .catch(function () { b.disabled = false; b.textContent = "Salva"; });
+  });
+
+  // ---- Ambasciatori e regole ----
+  var RULE_LABELS = { amb_top_n: "Posti gara del mese", top_min_joined: "Portati minimi per la gara",
+    amb_min_joined: "Soglia: portati", amb_min_referrals: "Soglia: assidui", ref_min_games: "Assiduo: partite",
+    ref_min_days: "Assiduo: giorni diversi", ref_window_days: "Assiduo: entro giorni", amb_inactive_days: "Sospeso dopo giorni inattivo",
+    amb_regain_window: "Riconquista: finestra giorni", amb_regain_days: "Riconquista: giorni giocati",
+    telegram_community_url: "Link community Telegram", telegram_ambassador_url: "Link gruppo Ambasciatori" };
+  function ago(t) { if (!t) return "–"; var d = Math.floor((Date.now() / 1000 - t) / 86400); return d <= 0 ? "oggi" : d === 1 ? "ieri" : d + " giorni fa"; }
+  function renderAmb(d) {
+    var ST = { active: "⭐ Attivo", suspended: "Sospeso", none: "–" };
+    $("ambTable").innerHTML = d.people.length ? d.people.map(function (p) {
+      return "<tr><td>" + esc(p.nickname) + "</td><td>" + ST[p.state] + (p.state === "active" ? ' <span class="pill">' + (p.reason === "top" ? "primi 3" : "soglia") + "</span>" : "") +
+        "</td><td>" + p.referrals_total + "</td><td>" + p.referrals_active + "</td><td>" + (p.month_rank ? p.month_rank + "° (" + p.month_joined + ")" : "–") +
+        "</td><td>" + ago(p.last_game_at) + "</td></tr>";
+    }).join("") : '<tr><td colspan="6" class="hint">Ancora nessun invito.</td></tr>';
+    var f = $("ambForm"); if (f.dataset.ready) return; f.dataset.ready = "1";
+    f.innerHTML = Object.keys(RULE_LABELS).map(function (k) {
+      var isUrl = k.indexOf("telegram_") === 0;
+      return '<label class="label" style="display:flex;flex-direction:column;gap:4px">' + RULE_LABELS[k] +
+        '<input class="field" name="' + k + '" ' + (isUrl ? 'type="url" placeholder="https://t.me/…"' : 'type="number" min="1" max="365"') + ' value="' + esc(d.settings[k] == null ? "" : d.settings[k]) + '"></label>';
+    }).join("");
+  }
+  function loadAmb() {
+    fetch(API + "/admin/ambassadors", { cache: "no-store", headers: { "X-Admin-Token": token } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d) renderAmb(d); }).catch(function () {});
+  }
+  $("ambSave").addEventListener("click", function () {
+    var body = {};
+    Array.prototype.forEach.call($("ambForm").querySelectorAll("input"), function (el) {
+      body[el.name] = el.type === "number" ? parseInt(el.value, 10) : el.value.trim();
+    });
+    $("ambMsg").className = "err"; $("ambMsg").textContent = "Salvo…";
+    fetch(API + "/admin/community-settings", { method: "POST", cache: "no-store",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { $("ambMsg").textContent = res.j.error || "Errore"; return; }
+        $("ambMsg").className = "err okmsg"; $("ambMsg").textContent = "Salvato."; loadAmb();
+      }).catch(function () { $("ambMsg").textContent = "Server non raggiungibile."; });
+  });
+
+  function loadInboxes() { loadReports(); loadProblems(); loadFlagged(); loadIdeas(); loadAmb(); }
 
   var timer = null;
   function load() {
