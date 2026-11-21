@@ -46,6 +46,26 @@
   // links look like /c/<share-id>: resolve the id through the Nonaryx API
   // and hand the full payload to the app via the sudokupulse:// deep link.
   var path = location.pathname || '';
+  var invite = path.match(/^\/i\/([A-Za-z0-9]{4,12})\/?$/);
+  if (invite) {
+    // Invite link /i/<code>: the code rides the Play Store install
+    // referrer, so the app links the new player to whoever invited them.
+    var code = invite[1].toUpperCase();
+    var itI = (navigator.language || 'it').toLowerCase().startsWith('it');
+    document.title = 'Sudoku Nonaryx — ' + (itI ? 'Invito' : 'Invite');
+    document.getElementById('subtitle').textContent = itI
+      ? 'Un amico ti ha invitato a giocare!' : 'A friend invited you to play!';
+    var store = document.getElementById('playStore');
+    store.textContent = itI ? 'Scarica dal Play Store' : 'Get it on Google Play';
+    store.setAttribute('href', 'https://play.google.com/store/apps/details?id=com.sudokupulse.app&referrer='
+      + encodeURIComponent('nonaryx_ref=' + code));
+    document.getElementById('steps').textContent = itI
+      ? 'Sudoku con classifica mondiale, sfide tra amici e sfida del giorno. Il tuo codice invito è ' + code
+        + ': si collega da solo quando apri l\'app (oppure inseriscilo in Impostazioni → Invita amici).'
+      : 'Sudoku with a world leaderboard, friend challenges and a daily puzzle. Your invite code is ' + code
+        + ': it links automatically when you open the app (or enter it in Settings → Invite friends).';
+    return;
+  }
   var match = path.match(/^\/c\/([A-Za-z0-9_-]{4,32})\/?$/);
   if (!match) {
     location.replace('/');

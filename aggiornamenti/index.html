@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sudoku Nonaryx — Prossimi aggiornamenti</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:#0b1020; color:#e8ecf8;
+         padding:32px 20px; line-height:1.6; }
+  main { max-width:760px; margin:0 auto; }
+  h1 { font-size:1.8rem; margin:0 0 .3rem; }
+  p.lead { color:#9aa0c3; margin:0 0 1.6rem; }
+  h2 { font-size:1.1rem; margin:1.8rem 0 .6rem; color:#7cc4ff; display:flex; gap:.5rem; align-items:center; }
+  ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:.5rem; }
+  li { background:#151a36; border-radius:12px; padding:.75rem 1rem; }
+  li small { color:#6b7199; display:block; margin-top:.15rem; }
+  .empty { color:#6b7199; font-style:italic; }
+  a { color:#7cc4ff; }
+  .foot { margin-top:2.5rem; color:#6b7199; font-size:.9rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>Prossimi aggiornamenti</h1>
+<p class="lead" id="lead">Le idee dei giocatori che entrano in Sudoku Nonaryx. Proponi la tua dall'app: <em>Impostazioni → Proponi un'idea</em>.</p>
+
+<h2>🚧 <span id="hWork">In lavorazione</span></h2>
+<ul id="in_progress"><li class="empty">…</li></ul>
+
+<h2>📋 <span id="hPlan">In programma</span></h2>
+<ul id="planned"><li class="empty">…</li></ul>
+
+<h2>✅ <span id="hDone">Uscite</span></h2>
+<ul id="released"><li class="empty">…</li></ul>
+
+<p class="foot"><a href="/regole.html">Regole della community</a> · <a href="/privacy.html">Privacy</a></p>
+</main>
+<script>
+(function () {
+  var it = (navigator.language || 'it').toLowerCase().indexOf('it') === 0;
+  if (!it) {
+    document.documentElement.lang = 'en';
+    document.title = 'Sudoku Nonaryx — Coming next';
+    document.querySelector('h1').textContent = 'Coming next';
+    document.getElementById('lead').innerHTML = 'Player ideas making their way into Sudoku Nonaryx. Suggest yours in the app: <em>Settings → Suggest an idea</em>.';
+    document.getElementById('hWork').textContent = 'In progress';
+    document.getElementById('hPlan').textContent = 'Planned';
+    document.getElementById('hDone').textContent = 'Released';
+  }
+  var none = it ? 'Ancora niente qui.' : 'Nothing here yet.';
+  function fill(id, items) {
+    var ul = document.getElementById(id);
+    ul.textContent = '';
+    if (!items.length) {
+      var li = document.createElement('li'); li.className = 'empty'; li.textContent = none; ul.appendChild(li); return;
+    }
+    items.forEach(function (x) {
+      var li = document.createElement('li');
+      li.textContent = x.title;  // text only: titles are written by the owner but never treated as HTML
+      var s = document.createElement('small');
+      s.textContent = (it ? 'Aggiornato il ' : 'Updated ') + new Date(x.updated * 1000).toLocaleDateString(it ? 'it-IT' : 'en-GB');
+      li.appendChild(s); ul.appendChild(li);
+    });
+  }
+  fetch('https://api.nonaryx.it/roadmap', { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+    .then(function (d) {
+      ['in_progress', 'planned', 'released'].forEach(function (st) {
+        fill(st, d.items.filter(function (x) { return x.status === st; }));
+      });
+    })
+    .catch(function () {
+      ['in_progress', 'planned', 'released'].forEach(function (st) { fill(st, []); });
+    });
+})();
+</script>
+</body>
+</html>
