@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sudoku Nonaryx — Sfida</title>
+<title>Sudoku Nonaryx</title>
+<meta name="description" content="Sudoku con classifica mondiale, sfide tra amici e sfida del giorno.">
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -57,8 +58,16 @@
       ? 'Un amico ti ha invitato a giocare!' : 'A friend invited you to play!';
     var store = document.getElementById('playStore');
     store.textContent = itI ? 'Scarica dal Play Store' : 'Get it on Google Play';
-    store.setAttribute('href', 'https://play.google.com/store/apps/details?id=com.sudokupulse.app&referrer='
-      + encodeURIComponent('nonaryx_ref=' + code));
+    var referrer = encodeURIComponent('nonaryx_ref=' + code);
+    var webStore = 'https://play.google.com/store/apps/details?id=com.sudokupulse.app&referrer=' + referrer;
+    // On Android open the Play Store app directly (market://): in-app
+    // browsers (WhatsApp, Telegram, Instagram…) may otherwise keep the
+    // web page and lose the install referrer. Elsewhere, the web link.
+    store.setAttribute('href', /Android/i.test(navigator.userAgent)
+      ? 'intent://details?id=com.sudokupulse.app&referrer=' + referrer
+        + '#Intent;scheme=market;package=com.android.vending;S.browser_fallback_url='
+        + encodeURIComponent(webStore) + ';end'
+      : webStore);
     document.getElementById('steps').textContent = itI
       ? 'Sudoku con classifica mondiale, sfide tra amici e sfida del giorno. Il tuo codice invito è ' + code
         + ': si collega da solo quando apri l\'app (oppure inseriscilo in Impostazioni → Invita amici).'
