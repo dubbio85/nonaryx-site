@@ -69,6 +69,15 @@
   .field { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--fg); font: inherit; }
   .primary { padding: 9px 14px; border-radius: 10px; border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
   .foot { color: var(--faint); font-size: 12px; text-align: center; }
+  .alert { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 999px; padding: 6px 12px; background: var(--bad); color: #fff; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+  #reportsCard { border: 1px solid color-mix(in srgb, var(--bad) 45%, var(--line)); }
+  .rep { background: var(--panel2); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .rep .who { font-size: 13px; }
+  .rep .who b { color: var(--fg); }
+  .rep .meta { font-size: 12px; color: var(--faint); }
+  .rep .msg { font-size: 13px; background: var(--bg); border-left: 3px solid var(--bad); border-radius: 6px; padding: 6px 9px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .rep .act { display: flex; gap: 8px; flex-wrap: wrap; }
+  .danger { padding: 6px 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--bad) 55%, var(--line)); background: transparent; color: var(--bad); font: inherit; font-size: 12px; cursor: pointer; }
   @media (max-width: 900px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .pair.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   @media (max-width: 680px) { .pair.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid { grid-template-columns: minmax(0, 1fr); } .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -95,6 +104,7 @@
           <button role="tab" data-r="month" aria-selected="false">Mese</button>
           <button role="tab" data-r="year" aria-selected="false">Anno</button>
         </div>
+        <button class="alert" id="repBadge" type="button" hidden></button>
         <button class="ghost" id="changeBtn" type="button">Cambia codice</button>
         <button class="ghost" id="logout" type="button">Esci</button>
       </div>
@@ -110,6 +120,12 @@
       <div style="display:flex;gap:8px"><button class="primary" type="submit">Salva codice</button><button class="ghost" id="changeCancel" type="button">Annulla</button></div>
       <div class="err" id="changeMsg"></div>
     </form>
+
+    <section class="card" id="reportsCard" style="margin-top:14px" hidden>
+      <h2>Segnalazioni da esaminare</h2>
+      <p class="hint">Giocatori segnalati dalla chat o dal profilo. <b>Archivia</b> se non c'è nulla di grave; <b>Blocca account</b> se la segnalazione è fondata: il giocatore non può più accedere né giocare online (si può annullare dal server).</p>
+      <div class="rows" id="reportsList"></div>
+    </section>
 
     <div class="kpis" style="margin-top:14px">
       <div class="kpi"><div class="label">Account totali</div><div class="v" id="kAcc">–</div><div class="s" id="kAccNew"></div></div>
@@ -391,6 +407,47 @@
     $("foot").textContent = "Aggiornato alle " + new Date().toLocaleTimeString("it-IT") + " · si aggiorna ogni minuto · solo dati aggregati, nessun nome.";
   }
 
+  // ---- segnalazioni: contenuti scritti dagli utenti, sempre passati da esc() ----
+  var baseTitle = document.title;
+  function renderReports(d) {
+    var n = d.open || 0, list = d.reports || [];
+    document.title = (n ? "(" + n + ") " : "") + baseTitle;
+    $("repBadge").hidden = !n;
+    $("repBadge").textContent = "⚠ " + n + (n === 1 ? " segnalazione" : " segnalazioni");
+    $("reportsCard").hidden = !n;
+    $("reportsList").innerHTML = list.map(function (x) {
+      var when = new Date(x.created * 1000).toLocaleString("it-IT");
+      return '<div class="rep">' +
+        '<div class="who"><b>' + esc(x.reporter) + '</b> ha segnalato <b>' + esc(x.reported) + '</b>' +
+          (x.reported_total > 1 ? ' <span class="pill bad">' + x.reported_total + ' segnalazioni in tutto</span>' : '') +
+          (x.reported_blocked ? ' <span class="pill">già bloccato</span>' : '') + '</div>' +
+        '<div class="meta">' + esc(when) + ' · motivo: ' + esc(x.reason || "–") + '</div>' +
+        (x.message_body != null ? '<div class="msg">' + esc(x.message_body) + '</div>'
+          : (x.message_id ? '<div class="meta">Il messaggio non c’è più (i messaggi si cancellano dopo 30 giorni).</div>' : '')) +
+        '<div class="act"><button class="ghost" data-id="' + x.id + '" data-a="dismiss">Archivia</button>' +
+        '<button class="danger" data-id="' + x.id + '" data-a="block" data-who="' + esc(x.reported) + '">Blocca account</button></div>' +
+      '</div>';
+    }).join("");
+  }
+  function loadReports() {
+    fetch(API + "/admin/reports", { cache: "no-store", headers: { "X-Admin-Token": token } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d) renderReports(d); })
+      .catch(function () {});
+  }
+  $("reportsList").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-id]"); if (!b) return;
+    var a = b.dataset.a;
+    if (a === "block" && !confirm("Bloccare l'account " + b.dataset.who + "? Non potrà più accedere né giocare online.")) return;
+    b.disabled = true;
+    fetch(API + "/admin/reports/resolve", { method: "POST", cache: "no-store",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify({ report_id: +b.dataset.id, action: a }) })
+      .then(function () { loadReports(); load(); })
+      .catch(function () { b.disabled = false; });
+  });
+  $("repBadge").addEventListener("click", function () { $("reportsCard").scrollIntoView({ behavior: "smooth", block: "start" }); });
+
   var timer = null;
   function load() {
     fetch(API + "/admin/stats?range=" + range, { cache: "no-store", headers: { "X-Admin-Token": token } })
@@ -399,7 +456,7 @@
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
       })
-      .then(function (d) { if (d.range === range) { showApp(); render(d); } })
+      .then(function (d) { if (d.range === range) { showApp(); render(d); loadReports(); } })
       .catch(function (e) {
         if (e.auth) { try { localStorage.removeItem(KEY); } catch (x) {} token = null; showLogin("Codice non valido."); }
         else $("foot").textContent = "Server non raggiungibile, riprovo tra un minuto.";
