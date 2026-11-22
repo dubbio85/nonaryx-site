@@ -80,6 +80,13 @@
   .danger { padding: 6px 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--bad) 55%, var(--line)); background: transparent; color: var(--bad); font: inherit; font-size: 12px; cursor: pointer; }
   @media (max-width: 900px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .pair.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  .tabs button { border: 1px solid var(--line); background: var(--panel); color: var(--muted); font: inherit; font-size: 13px; padding: 8px 14px; border-radius: 10px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .tabs .count { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 5px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 11px; text-align: center; }
+  .live { width: 100%; height: 760px; border: 0; border-radius: 16px; background: var(--bg); }
+  .kv { display: grid; grid-template-columns: 11em minmax(0, 1fr); gap: 6px 12px; font-size: 13px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
   @media (max-width: 680px) { .pair.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid { grid-template-columns: minmax(0, 1fr); } .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
 </head>
@@ -96,9 +103,9 @@
 
   <div id="app" hidden>
     <header>
-      <h1>Sudoku Nonaryx <span>· statistiche</span></h1>
+      <h1>Sudoku Nonaryx <span>· pannello</span></h1>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <div class="seg" role="tablist" id="ranges">
+        <div class="seg" role="tablist" id="ranges" data-only="stats">
           <button role="tab" data-r="day" aria-selected="false">Giorno</button>
           <button role="tab" data-r="week" aria-selected="true">Settimana</button>
           <button role="tab" data-r="month" aria-selected="false">Mese</button>
@@ -109,6 +116,18 @@
         <button class="ghost" id="logout" type="button">Esci</button>
       </div>
     </header>
+
+    <nav class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-tab="today" aria-selected="true">Oggi</button>
+      <button role="tab" data-tab="mod" aria-selected="false">Moderazione<span class="count" id="modCount" hidden></span></button>
+      <button role="tab" data-tab="community" aria-selected="false">Community</button>
+      <button role="tab" data-tab="stats" aria-selected="false">Statistiche</button>
+      <button role="tab" data-tab="server" aria-selected="false">Server</button>
+    </nav>
+
+    <div data-pane="today">
+      <iframe class="live" id="liveFrame" title="Giocatori online adesso e storico" loading="lazy"></iframe>
+    </div>
 
     <form class="card" id="changeForm" hidden style="margin-top:12px;max-width:460px">
       <h2>Scegli il tuo codice</h2>
@@ -121,6 +140,8 @@
       <div class="err" id="changeMsg"></div>
     </form>
 
+    <div data-pane="mod" hidden>
+    <p class="hint" id="modEmpty" style="margin-top:14px">Niente da esaminare: nessuna segnalazione, problema o risultato sospetto aperto.</p>
     <section class="card" id="reportsCard" style="margin-top:14px" hidden>
       <h2>Segnalazioni da esaminare</h2>
       <p class="hint">Giocatori segnalati dalla chat o dal profilo. <b>Archivia</b> se non c'è nulla di grave; <b>Cambia nickname</b> se il problema è solo il nome; <b>Blocca account</b> se la segnalazione è fondata: il giocatore non può più accedere né giocare online (si può annullare dal server).</p>
@@ -138,6 +159,9 @@
       <p class="hint">Partite che l'anti-imbroglio ha giudicato strane. Sopra 70 sono già fuori dalle classifiche. <b>Va bene</b> le rimette in classifica; <b>Annulla</b> le toglie da tutte le classifiche; <b>Blocca</b> annulla e blocca l'account.</p>
       <div class="rows" id="flaggedList"></div>
     </section>
+    </div>
+
+    <div data-pane="community" hidden>
 
     <section class="card" id="ideasCard" style="margin-top:14px">
       <h2>Idee dei giocatori</h2>
@@ -154,7 +178,9 @@
         <div style="display:flex;gap:8px;margin-top:8px"><button class="primary" id="ambSave" type="button">Salva regole</button><div class="err" id="ambMsg"></div></div>
       </details>
     </section>
+    </div>
 
+    <div data-pane="stats" hidden>
     <div class="kpis" style="margin-top:14px">
       <div class="kpi"><div class="label">Account totali</div><div class="v" id="kAcc">–</div><div class="s" id="kAccNew"></div></div>
       <div class="kpi"><div class="label">Partite</div><div class="v" id="kGames">–</div><div class="s" id="kGamesS"></div></div>
@@ -252,6 +278,26 @@
         <div class="pair" id="quality"></div>
         <div class="rows" id="integrity"></div>
       </section>
+    </div>
+    </div>
+
+    <div data-pane="server" hidden>
+      <div class="grid" style="margin-top:14px">
+        <section class="card">
+          <h2>Stato del server</h2>
+          <dl class="kv" id="srvInfo"><dt>Stato</dt><dd>Carico…</dd></dl>
+        </section>
+        <section class="card">
+          <h2>Versioni dell'app in uso</h2>
+          <p class="hint">Giocatori attivi nel periodo scelto in Statistiche, per versione. "Sconosciuta" = 1.0.5 o precedente (non la comunicano).</p>
+          <div class="rows" id="versions"></div>
+        </section>
+        <section class="card wide">
+          <h2>Ultimi avvisi ed errori</h2>
+          <p class="hint">Dall'avvio del server. Vuoto = tutto liscio.</p>
+          <div class="rows" id="srvErrors"></div>
+        </section>
+      </div>
     </div>
     <p class="foot" id="foot" style="margin-top:14px"></p>
   </div>
@@ -432,7 +478,63 @@
     bars($("cTimes"), 640, 170, binLabels, DIFF.map(function (_, k) { return { values: th.by_diff[k], color: DCOL[k] }; }),
       { tip: function (i) { return binLabels[i] + ": " + DIFF.map(function (n, k) { return th.by_diff[k][i] ? n + " " + th.by_diff[k][i] : ""; }).filter(Boolean).join(", "); } });
 
+    rows($("versions"), (d.app_versions || []).map(function (x) {
+      return { k: x.version === "unknown" ? "Sconosciuta" : x.version, v: x.players };
+    }));
     $("foot").textContent = "Aggiornato alle " + new Date().toLocaleTimeString("it-IT") + " · si aggiorna ogni minuto · solo dati aggregati, nessun nome.";
+  }
+
+  // ---- schede ----
+  var tab = "today";
+  function showTab(name) {
+    tab = name;
+    Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b) { b.setAttribute("aria-selected", String(b.dataset.tab === name)); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pane]"), function (p) { p.hidden = p.dataset.pane !== name; });
+    $("ranges").hidden = name !== "stats" && name !== "server";
+    if (name === "today" && !$("liveFrame").src) $("liveFrame").src = "/online/?embed=1";
+    if (name === "server") loadServer();
+    try { history.replaceState(null, "", location.pathname + location.search + "#" + name); } catch (e) {}
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b) {
+    b.addEventListener("click", function () { showTab(b.dataset.tab); });
+  });
+
+  // ---- stato del server ----
+  function ago(t) {
+    if (!t) return "mai";
+    var s = Math.max(0, Math.round(Date.now() / 1000 - t));
+    if (s < 90) return s + " s fa";
+    if (s < 5400) return Math.round(s / 60) + " min fa";
+    if (s < 172800) return Math.round(s / 3600) + " ore fa";
+    return Math.round(s / 86400) + " giorni fa";
+  }
+  function mb(b) { return b == null ? "–" : (b / 1048576).toFixed(1) + " MB"; }
+  function loadServer() {
+    fetch(API + "/admin/server", { cache: "no-store", headers: { "X-Admin-Token": token } })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (d) {
+        var up = d.uptime_s, upTxt = up >= 86400 ? Math.floor(up / 86400) + " g " + Math.floor(up % 86400 / 3600) + " h" : Math.floor(up / 3600) + " h " + Math.floor(up % 3600 / 60) + " min";
+        var bk = d.backups.latest, tg = d.telegram;
+        var tgTxt = !tg.configured ? '<span class="pill">non configurato</span>'
+          : tg.last_error_at && (!tg.last_ok || tg.last_error_at > tg.last_ok)
+            ? '<span class="pill bad">errore ' + esc(ago(tg.last_error_at)) + '</span> ' + esc(tg.last_error || "")
+            : '<span class="pill ok">ok</span> ultimo invio ' + esc(ago(tg.last_ok));
+        var bkTxt = bk ? '<span class="pill ' + (Date.now() / 1000 - bk.at < 36 * 3600 ? 'ok' : 'bad') + '">' + esc(ago(bk.at)) + '</span> ' + esc(bk.name) + " · " + mb(bk.size_bytes) + " · " + d.backups.count + " tenuti (max " + d.backups.keep + ")"
+          : '<span class="pill bad">nessun backup automatico ancora</span>';
+        $("srvInfo").innerHTML =
+          "<dt>Stato</dt><dd><span class=\"pill ok\">acceso</span> da " + esc(upTxt) + "</dd>" +
+          "<dt>Versione codice</dt><dd>" + esc(d.code.hash) + " · file del " + esc(new Date(d.code.files_updated * 1000).toLocaleString("it-IT")) + "</dd>" +
+          "<dt>Database</dt><dd>" + mb(d.database.size_bytes) + " · " + d.database.accounts + " account · " + d.database.results + " partite · " + d.database.messages + " messaggi</dd>" +
+          "<dt>Backup notturno</dt><dd>" + bkTxt + "</dd>" +
+          "<dt>Notifiche Telegram</dt><dd>" + tgTxt + "</dd>" +
+          "<dt>Python</dt><dd>" + esc(d.python) + "</dd>";
+        $("srvErrors").innerHTML = d.recent_errors.length ? d.recent_errors.map(function (e) {
+          return '<div class="rep"><div class="meta">' + esc(new Date(e.at * 1000).toLocaleString("it-IT")) + " · " + esc(e.level) + " · " + esc(e.where) + '</div><div class="msg">' + esc(e.message) + "</div></div>";
+        }).join("") : '<p class="hint">Nessun avviso dall’avvio.</p>';
+      })
+      .catch(function () {
+        $("srvInfo").innerHTML = '<dt>Stato</dt><dd><span class="pill bad">non raggiungibile</span> (o server non ancora aggiornato)</dd>';
+      });
   }
 
   // ---- segnalazioni: contenuti scritti dagli utenti, sempre passati da esc() ----
@@ -447,6 +549,9 @@
     document.title = (n ? "(" + n + ") " : "") + baseTitle;
     $("repBadge").hidden = !n;
     $("repBadge").textContent = "⚠ " + parts.join(" · ");
+    var mod = todo.rep + todo.prob + todo.flag;
+    $("modCount").hidden = !mod; $("modCount").textContent = mod;
+    $("modEmpty").hidden = !!mod;
   }
   function renderReports(d) {
     var n = d.open || 0, list = d.reports || [];
@@ -487,7 +592,7 @@
   });
   $("repBadge").addEventListener("click", function () {
     var first = ["reportsCard", "problemsCard", "flaggedCard", "ideasCard"].filter(function (id) { return !$(id).hidden; })[0];
-    if (first) $(first).scrollIntoView({ behavior: "smooth", block: "start" });
+    if (first) { showTab(first === "ideasCard" ? "community" : "mod"); $(first).scrollIntoView({ behavior: "smooth", block: "start" }); }
   });
 
   // ---- problemi segnalati dall'app ----
@@ -718,7 +823,15 @@
         else $("foot").textContent = "Server non raggiungibile, riprovo tra un minuto.";
       });
   }
-  function showApp() { $("login").hidden = true; $("app").hidden = false; if (!timer) timer = setInterval(load, 60000); }
+  function showApp() {
+    var first = $("app").hidden;
+    $("login").hidden = true; $("app").hidden = false;
+    if (!timer) timer = setInterval(function () { load(); if (tab === "server") loadServer(); }, 60000);
+    if (first) {
+      var h = (location.hash || "").slice(1);
+      showTab(["today", "mod", "community", "stats", "server"].indexOf(h) >= 0 ? h : "today");
+    }
+  }
   function showLogin(msg) { clearInterval(timer); timer = null; $("app").hidden = true; $("login").hidden = false; $("loginErr").textContent = msg || ""; $("tok").focus(); }
 
   $("login").addEventListener("submit", function (e) {

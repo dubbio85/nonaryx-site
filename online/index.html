@@ -84,7 +84,10 @@
   .note { color: var(--faint); font-size: 12px; margin: 0; text-align: center; }
   @media (max-width: 420px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (prefers-reduced-motion: reduce) { .status[data-s="ok"] .dot { animation: none; } .big { transition: none; } }
+  /* Shown inside the owner panel ("Oggi" tab): no page title, no footer links. */
+  html.embed header h1, html.embed .foot .links { display: none; }
 </style>
+<script>if (/[?&]embed=1/.test(location.search)) document.documentElement.className = "embed";</script>
 </head>
 <body>
 <div class="wrap">
@@ -147,7 +150,7 @@
   <p class="foot">
     Si aggiorna ogni 10 secondi · <span id="updated">mai aggiornato</span><br>
     Conta solo chi ha la classifica online attiva e non si è nascosto dalla stanza.
-    <a href="/classifica/">Classifica</a>
+    <span class="links"><a href="/classifica/">Classifica</a> · <a href="/online/admin/" rel="nofollow">Pannello</a></span>
   </p>
 </div>
 
