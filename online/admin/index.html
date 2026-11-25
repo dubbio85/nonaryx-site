@@ -127,6 +127,12 @@
 
     <div data-pane="today">
       <iframe class="live" id="liveFrame" title="Giocatori online adesso e storico" loading="lazy"></iframe>
+      <section class="card" style="margin-top:12px">
+        <h2 style="margin-top:0">Chi è online <span class="count" id="onlineCount" hidden></span></h2>
+        <p class="hint">Battito degli ultimi 5 minuti: chi ha l'app aperta in questo momento. Visibile solo a te, i giocatori non sanno di essere elencati qui.</p>
+        <div class="tablewrap"><table><thead><tr><th>Giocatore</th><th>Stato</th><th>Ultimo battito</th><th>Versione</th></tr></thead><tbody id="onlineTable"></tbody></table></div>
+        <p class="hint" id="onlineEmpty">Nessuno online adesso.</p>
+      </section>
     </div>
 
     <form class="card" id="changeForm" hidden style="margin-top:12px;max-width:460px">
@@ -807,6 +813,28 @@
       }).catch(function () { $("ambMsg").textContent = "Server non raggiungibile."; });
   });
 
+  // ---- chi è online: tabella owner-only, aggiornata col timer da un minuto ----
+  function flag(cc) {
+    if (!cc || !/^[A-Z]{2}$/.test(cc)) return "";
+    return String.fromCodePoint.apply(null, cc.split("").map(function (c) { return 127397 + c.charCodeAt(0); })) + " ";
+  }
+  function loadOnline() {
+    fetch(API + "/admin/online", { cache: "no-store", headers: { "X-Admin-Token": token } })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (d) {
+        $("onlineTable").innerHTML = d.players.map(function (p) {
+          var st = p.state === "playing" ? '<span class="pill ok">in partita</span>'
+            : p.active ? '<span class="pill ok">online</span>' : '<span class="pill">inattivo</span>';
+          return "<tr><td>" + flag(p.country) + esc(p.nickname) + (p.ambassador ? " ⭐" : "") +
+            "</td><td>" + st + "</td><td>" + esc(ago(p.last_seen)) + "</td><td>" + esc(p.app_version || "–") + "</td></tr>";
+        }).join("");
+        $("onlineEmpty").hidden = d.players.length > 0;
+        $("onlineCount").hidden = !d.players.length;
+        $("onlineCount").textContent = d.players.length;
+      })
+      .catch(function () { /* server vecchio o irraggiungibile: la tabella resta com'è */ });
+  }
+
   function loadInboxes() { loadReports(); loadProblems(); loadFlagged(); loadIdeas(); loadAmb(); }
 
   var timer = null;
@@ -817,7 +845,7 @@
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
       })
-      .then(function (d) { if (d.range === range) { showApp(); render(d); loadInboxes(); } })
+      .then(function (d) { if (d.range === range) { showApp(); render(d); loadInboxes(); loadOnline(); } })
       .catch(function (e) {
         if (e.auth) { try { localStorage.removeItem(KEY); } catch (x) {} token = null; showLogin("Codice non valido."); }
         else $("foot").textContent = "Server non raggiungibile, riprovo tra un minuto.";
