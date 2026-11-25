@@ -121,6 +121,7 @@
       <button role="tab" data-tab="today" aria-selected="true">Oggi</button>
       <button role="tab" data-tab="mod" aria-selected="false">Moderazione<span class="count" id="modCount" hidden></span></button>
       <button role="tab" data-tab="community" aria-selected="false">Community</button>
+      <button role="tab" data-tab="players" aria-selected="false">Giocatori</button>
       <button role="tab" data-tab="stats" aria-selected="false">Statistiche</button>
       <button role="tab" data-tab="server" aria-selected="false">Server</button>
     </nav>
@@ -184,6 +185,15 @@
         <div style="display:flex;gap:8px;margin-top:8px"><button class="primary" id="ambSave" type="button">Salva regole</button><div class="err" id="ambMsg"></div></div>
       </details>
     </section>
+    </div>
+
+    <div data-pane="players" hidden>
+      <section class="card" style="margin-top:14px">
+        <h2 style="margin-top:0">Tutti gli account <span class="count" id="playersCount" hidden></span></h2>
+        <p class="hint">Retroattivo: creati, partite e collegamenti arrivano dai dati già registrati. "Ultimo accesso" è l'ultima apertura dell'app (ora esatta), "giorni attivo" conta i giorni distinti in cui si è collegato. "Google" indica solo che l'account è collegato a un accesso Google — l'email non viene mai salvata.</p>
+        <div class="tablewrap"><table><thead><tr><th>Giocatore</th><th>Accesso</th><th>Partite</th><th>Ultimo accesso</th><th>Ultima partita</th><th>Giorni attivo</th><th>Registrato</th></tr></thead><tbody id="playersTable"></tbody></table></div>
+        <p class="hint" id="playersEmpty" hidden>Nessun account ancora.</p>
+      </section>
     </div>
 
     <div data-pane="stats" hidden>
@@ -499,6 +509,7 @@
     $("ranges").hidden = name !== "stats" && name !== "server";
     if (name === "today" && !$("liveFrame").src) $("liveFrame").src = "/online/?embed=1";
     if (name === "server") loadServer();
+    if (name === "players") loadPlayers();
     try { history.replaceState(null, "", location.pathname + location.search + "#" + name); } catch (e) {}
   }
   Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b) {
@@ -813,6 +824,30 @@
       }).catch(function () { $("ambMsg").textContent = "Server non raggiungibile."; });
   });
 
+  // ---- giocatori: elenco retroattivo di tutti gli account ----
+  function fmtWhen(t) {
+    if (!t) return "mai";
+    var d = new Date(t * 1000);
+    return d.getDate() + " " + MESI[d.getMonth()] + " " + d.getFullYear() + ", " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+  function loadPlayers() {
+    fetch(API + "/admin/accounts", { cache: "no-store", headers: { "X-Admin-Token": token } })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (d) {
+        $("playersTable").innerHTML = d.accounts.map(function (a) {
+          var nome = flag(a.country) + esc(a.nickname) + (a.ambassador ? " ⭐" : "") +
+            (a.revoked ? ' <span class="pill bad">revocato</span>' : "");
+          var tipo = a.google ? '<span class="pill ok">Google</span>' : '<span class="pill">anonimo</span>';
+          return "<tr><td>" + nome + "</td><td>" + tipo + "</td><td>" + a.games + "</td><td>" + esc(fmtWhen(a.last_seen)) +
+            "</td><td>" + esc(fmtWhen(a.last_game_at)) + "</td><td>" + a.days_online + "</td><td>" + esc(fmtWhen(a.created)) + "</td></tr>";
+        }).join("");
+        $("playersEmpty").hidden = d.accounts.length > 0;
+        $("playersCount").hidden = !d.accounts.length;
+        $("playersCount").textContent = d.accounts.length;
+      })
+      .catch(function () { /* server vecchio o irraggiungibile: la tabella resta com'è */ });
+  }
+
   // ---- chi è online: tabella owner-only, aggiornata col timer da un minuto ----
   function flag(cc) {
     if (!cc || !/^[A-Z]{2}$/.test(cc)) return "";
@@ -854,10 +889,10 @@
   function showApp() {
     var first = $("app").hidden;
     $("login").hidden = true; $("app").hidden = false;
-    if (!timer) timer = setInterval(function () { load(); if (tab === "server") loadServer(); }, 60000);
+    if (!timer) timer = setInterval(function () { load(); if (tab === "server") loadServer(); if (tab === "players") loadPlayers(); }, 60000);
     if (first) {
       var h = (location.hash || "").slice(1);
-      showTab(["today", "mod", "community", "stats", "server"].indexOf(h) >= 0 ? h : "today");
+      showTab(["today", "mod", "community", "players", "stats", "server"].indexOf(h) >= 0 ? h : "today");
     }
   }
   function showLogin(msg) { clearInterval(timer); timer = null; $("app").hidden = true; $("login").hidden = false; $("loginErr").textContent = msg || ""; $("tok").focus(); }
